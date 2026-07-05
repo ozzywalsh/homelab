@@ -80,7 +80,7 @@ metadata:
 spec:
   type: NodePort
   selector:
-    app: qbittorrent
+    app: qbitorrent
   ports:
     - name: torrent-tcp
       protocol: TCP
