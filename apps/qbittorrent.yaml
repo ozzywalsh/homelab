@@ -84,11 +84,11 @@ spec:
   ports:
     - name: torrent-tcp
       protocol: TCP
-      port: 58124      # Port inside the cluster
-      targetPort: 58124 # Port the app is listening on
-      nodePort: 58124   # Port opened on your Talos Node IP
+      port: 31456
+      targetPort: 31456
+      nodePort: 31456
     - name: torrent-udp
       protocol: UDP
-      port: 58124
-      targetPort: 58124
-      nodePort: 58124
+      port: 31456
+      targetPort: 31456
+      nodePort: 31456
