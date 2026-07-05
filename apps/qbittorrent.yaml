@@ -58,6 +58,7 @@ spec:
           value: "8080"
         ports:
           - containerPort: 8080
+          - containerPort: 58124
         volumeMounts:
           - name: config
             mountPath: /config
@@ -70,3 +71,24 @@ spec:
         - name: downloads
           persistentVolumeClaim:
             claimName: qbittorrent-downloads-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent-peer
+  namespace: qbittorrent
+spec:
+  type: NodePort
+  selector:
+    app: qbittorrent
+  ports:
+    - name: torrent-tcp
+      protocol: TCP
+      port: 58124      # Port inside the cluster
+      targetPort: 58124 # Port the app is listening on
+      nodePort: 58124   # Port opened on your Talos Node IP
+    - name: torrent-udp
+      protocol: UDP
+      port: 58124
+      targetPort: 58124
+      nodePort: 58124
