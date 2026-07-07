@@ -82,6 +82,9 @@ spec:
     matchLabels:
       app: local-ddns-proxy
   template:
+    metadata:
+      labels:
+        app: local-ddns-proxy
     spec:
       containers:
       - name: proxy
