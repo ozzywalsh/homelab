@@ -121,5 +121,5 @@ spec:
     - match: Host(`qbittorrent.local`)
       kind: Rule
       services:
-        - name: qbitorrent
+        - name: qbittorrent-web
           port: 8080
