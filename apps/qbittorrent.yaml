@@ -75,6 +75,21 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  name: qbittorrent-web
+  namespace: qbitorrent
+spec:
+  type: ClusterIP
+  selector:
+    app: qbitorrent
+  ports:
+    - name: web-tcp
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
   name: qbittorrent-peer
   namespace: qbitorrent
 spec:
@@ -93,3 +108,18 @@ spec:
       port: 31456
       targetPort: 31456
       nodePort: 31456
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: qbittorrent
+  namespace: qbitorrent
+spec:
+  entryPoints:
+    - web 
+  routes:
+    - match: Host(`qbittorrent.local`)
+      kind: Rule
+      services:
+        - name: qbitorrent
+          port: 8080
