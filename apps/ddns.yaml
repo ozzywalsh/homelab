@@ -1,0 +1,134 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ddns
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ddns-proxy-script
+  namespace: ddns
+data:
+  server.js: |
+    const http = require('http');
+    const https = require('https');
+
+    const PORT = 8080;
+    const CF_TOKEN = process.env.CF_API_TOKEN;
+    const ZONE_ID = process.env.CF_ZONE_ID;
+    const RECORD_ID = process.env.CF_RECORD_ID;
+    const PASSPHRASE = process.env.PROXY_PASSPHRASE;
+
+    const server = http.createServer((req, res) => {
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      
+      const password = url.searchParams.get('password');
+      const hostname = url.searchParams.get('hostname');
+      const ip = url.searchParams.get('myip');
+
+      if (password !== PASSPHRASE) {
+        console.warn("Rejected update attempt: Unauthorized passphrase.");
+        res.writeHead(401);
+        return res.end('Unauthorized');
+      }
+
+      if (!ip || !hostname) {
+        res.writeHead(400);
+        return res.end('Missing parameters');
+      }
+
+      console.log(`Zyxel webhook caught by Traefik! WAN IP changed to: ${ip}`);
+
+      const cfPayload = JSON.stringify({ type: 'A', name: hostname, content: ip, ttl: 120, proxied: false });
+      
+      const cfReq = https.request({
+        hostname: 'api.cloudflare.com',
+        path: `/client/v4/zones/${ZONE_ID}/dns_records/${RECORD_ID}`,
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${CF_TOKEN}`,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(cfPayload)
+        }
+      }, (cfRes) => {
+        let body = '';
+        cfRes.on('data', chunk => body += chunk);
+        cfRes.on('end', () => {
+          if (cfRes.statusCode === 200 && body.includes('"success":true')) {
+            console.log(`Cloudflare core record updated successfully.`);
+            res.writeHead(200);
+            res.end('OK');
+          } else {
+            res.writeHead(500);
+            res.end('Cloudflare API Failure');
+          }
+        });
+      });
+
+      cfReq.on('error', (err) => {
+        res.writeHead(500);
+        res.end('Network Error');
+      });
+
+      cfReq.write(cfPayload);
+      cfReq.end();
+    });
+
+    server.listen(PORT, () => console.log(`Proxy actively watching internal Traefik traffic on port ${PORT}`));
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: local-ddns-proxy
+  namespace: ddns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: local-ddns-proxy
+  template:
+    spec:
+      containers:
+      - name: proxy
+        image: node:20-alpine
+        command: ["node", "/app/server.js"]
+        ports:
+        - containerPort: 8080
+        envFrom:
+        - secretRef:
+            name: ddns-proxy-secrets
+        volumeMounts:
+        - name: script
+          mountPath: /app
+      volumes:
+      - name: script
+        configMap:
+          name: ddns-proxy-script
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: local-ddns-proxy-svc
+  namespace: ddns
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+  selector:
+    app: local-ddns-proxy
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: local-ddns-proxy-ingress
+  namespace: ddns
+spec:
+  entryPoints:
+    - web 
+  routes:
+    - match: Host(`ddns.local`)
+      kind: Rule
+      services:
+        - name: local-ddns-proxy-svc
+          port: 8080
