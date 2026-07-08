@@ -1,0 +1,30 @@
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: agent
+  namespace: observability
+spec:
+  mode: daemonset
+  volumes:
+    - name: hostfs
+      hostPath:
+        path: /
+  volumeMounts:
+    - name: hostfs
+      mountPath: /hostfs
+      readOnly: true
+  config:
+    receivers:
+      hostmetrics:
+        root_path: /hostfs
+        collection_interval: 10s
+        scrapers:
+          cpu: {}
+          memory: {}
+    exporters:
+      debug: {verbosity: detailed}
+    service:
+      pipelines:
+        metrics:
+          receivers: [hostmetrics]
+          exporters: [debug]
