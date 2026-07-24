@@ -29,3 +29,9 @@ spec:
       prometheusSpec:
         podMonitorSelectorNilUsesHelmValues: false
         serviceMonitorSelectorNilUsesHelmValues: false
+    grafana:
+      ingress:
+        enabled: true
+        ingressClassName: 'traefik'
+        hosts:
+          - host: grafana.local
