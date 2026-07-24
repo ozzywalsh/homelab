@@ -94,13 +94,13 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: obi-collector-monitor
-  namespace: monitoring
+  namespace: obi-system
 spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: obi-collector-collector
       app.kubernetes.io/component: opentelemetry-collector
   endpoints:
-    - port: prometheus-exporter
+    - port: prometheus
       interval: 15s
       path: /metrics
