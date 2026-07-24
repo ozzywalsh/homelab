@@ -82,8 +82,25 @@ spec:
     exporters:
       debug:
         verbosity: detailed
+      prometheus:
+        endpoint: "0.0.0.0:8889"
     service:
       pipelines:
-        traces:
+        metrics:
           receivers: [obi]
-          exporters: [debug]
+          exporters: [debug, prometheus]
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: obi-collector-monitor
+  namespace: monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: obi-collector-collector
+      app.kubernetes.io/component: opentelemetry-collector
+  endpoints:
+    - port: prometheus-exporter
+      interval: 15s
+      path: /metrics

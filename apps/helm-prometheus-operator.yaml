@@ -24,3 +24,8 @@ spec:
         namespace: monitoring
   install:
     createNamespace: true
+  values:
+    prometheus:
+      prometheusSpec:
+        podMonitorSelectorNilUsesHelmValues: false
+        serviceMonitorSelectorNilUsesHelmValues: false
