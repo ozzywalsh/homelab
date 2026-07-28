@@ -89,7 +89,7 @@ spec:
             from: All
           certificateRefs:
             - kind: Secret
-              name: letsencrypt-staging
+              name: domain-tls
               group: ""
 
     # Logging
