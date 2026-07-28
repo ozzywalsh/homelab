@@ -51,7 +51,7 @@ spec:
       - name: dri
         mountPath: /dev/dri
     ingress:
-      enabled: true
+      enabled: false
       className: 'traefik'
       annotations:
         traefik.ingress.kubernetes.io/router.entrypoints: websecure-external
@@ -69,3 +69,21 @@ spec:
         - secretName: "letsencrypt-staging"
           hosts:
             - home.ozzywalsh.com
+    httpRoute:
+      enabled: false
+      annotations: {}
+      # -- Gateway references to attach this HTTPRoute to
+      parentRefs: 
+        - name: traefik-gateway
+          namespace: traefik-external
+          sectionName: https
+          kind: Gateway
+      # -- Hostnames to match for this HTTPRoute
+      hostnames: 
+        - jellyfin.ozzywalsh.com
+      # -- Rules for routing traffic
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
