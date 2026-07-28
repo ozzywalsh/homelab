@@ -53,9 +53,14 @@ spec:
     ingress:
       enabled: true
       className: 'traefik'
+      annotations:
+        cert-manager.io/issuer: "letsencrypt-staging"
       hosts:
         - host: jellyfin.local
           paths:
             - path: /
               pathType: Prefix
-
+      tls:
+        - secretName: "letsencrypt-staging"
+          hosts:
+            - jellyfin.local
