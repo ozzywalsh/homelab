@@ -104,3 +104,6 @@ spec:
       prometheus:
         enabled: true
 
+    service:
+        spec:
+          type: NodePort
