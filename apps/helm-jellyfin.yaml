@@ -70,7 +70,7 @@ spec:
           hosts:
             - home.ozzywalsh.com
     httpRoute:
-      enabled: false
+      enabled: true
       annotations: {}
       # -- Gateway references to attach this HTTPRoute to
       parentRefs: 
