@@ -88,9 +88,7 @@ spec:
           namespacePolicy:
             from: All
           certificateRefs:
-            - kind: Secret
-              name: domain-tls
-              group: ""
+              - name: domain-tls
 
     # Logging
     log:
