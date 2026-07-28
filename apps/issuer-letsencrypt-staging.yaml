@@ -10,6 +10,8 @@ spec:
       name: letsencrypt-staging
     profile: tlsserver
     solvers:
-      - http01:
-          ingress:
-            ingressClassName: traefik
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token
