@@ -76,7 +76,7 @@ spec:
       parentRefs: 
         - name: traefik-gateway
           namespace: traefik-external
-          sectionName: https
+          sectionName: websecure
           kind: Gateway
       # -- Hostnames to match for this HTTPRoute
       hostnames: 
