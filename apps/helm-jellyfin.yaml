@@ -54,7 +54,7 @@ spec:
       enabled: true
       className: 'traefik'
       annotations:
-        traefik.ingress.kubernetes.io/router.entrypoints: websecure`
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure-external
         cert-manager.io/issuer: "letsencrypt-staging"
       hosts:
         - host: jellyfin.local
