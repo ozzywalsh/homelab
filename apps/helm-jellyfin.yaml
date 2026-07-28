@@ -61,7 +61,11 @@ spec:
           paths:
             - path: /
               pathType: Prefix
+        - host: home.ozzywalsh.com
+          paths:
+            - path: /
+              pathType: Prefix
       tls:
         - secretName: "letsencrypt-staging"
           hosts:
-            - jellyfin.local
+            - home.ozzywalsh.com
