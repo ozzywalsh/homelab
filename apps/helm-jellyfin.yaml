@@ -26,6 +26,8 @@ spec:
     createNamespace: true
   values:
     replicaCount: 1
+    securityContext:
+      privileged: true # find alternative to this; needed for hardware acceleration to function
     persistence:
       config:
         enabled: true
