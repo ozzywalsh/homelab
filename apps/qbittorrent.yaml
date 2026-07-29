@@ -47,32 +47,78 @@ spec:
         app: qbitorrent
     spec:
       containers:
-      - name: qbittorrent
-        image: lscr.io/linuxserver/qbittorrent:5.2.2
+
+      - name: gluetun
+        image: ghcr.io/qdm12/gluetun:v3.41.1
+        securityContext:
+          capabilities:
+            add:
+              - NET_ADMIN
         env:
-        - name: PUID
-          value: "1000" # Maps to your host user
-        - name: PGID
-          value: "1000" # Maps to your host group
-        - name: TZ
-          value: "Europe/Dublin"
-        - name: WEBUI_PORT
-          value: "8080"
+          - name: VPN_SERVICE_PROVIDER
+            value: protonvpn
+
+          - name: VPN_TYPE
+            value: wireguard
+
+          # Store these in a Secret in production
+          - name: WIREGUARD_PRIVATE_KEY
+            valueFrom:
+              secretKeyRef:
+                name: proton-wireguard
+                key: private-key
+
+          - name: WIREGUARD_ADDRESSES
+            value: "10.2.0.2/32"
+
+          # Optional
+          - name: TZ
+            value: Europe/Dublin
+
+          # Enable Proton port forwarding if supported
+          - name: VPN_PORT_FORWARDING
+            value: "on"
+
+        volumeMounts:
+          - name: tun
+            mountPath: /dev/net/tun
+
         ports:
           - containerPort: 8080
           - containerPort: 31456
+
+      - name: qbittorrent
+        image: lscr.io/linuxserver/qbittorrent:5.2.2
+
+        env:
+          - name: PUID
+            value: "1000"
+          - name: PGID
+            value: "1000"
+          - name: TZ
+            value: Europe/Dublin
+          - name: WEBUI_PORT
+            value: "8080"
+
         volumeMounts:
           - name: config
             mountPath: /config
           - name: downloads
             mountPath: /downloads
+
       volumes:
         - name: config
           persistentVolumeClaim:
             claimName: qbittorrent-config-pvc
+
         - name: downloads
           persistentVolumeClaim:
             claimName: qbittorrent-downloads-pvc
+
+        - name: tun
+          hostPath:
+            path: /dev/net/tun
+            type: CharDevice
 ---
 apiVersion: v1
 kind: Service
@@ -88,28 +134,6 @@ spec:
       protocol: TCP
       port: 8080
       targetPort: 8080
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: qbittorrent-peer
-  namespace: qbitorrent
-spec:
-  type: NodePort
-  externalTrafficPolicy: Local
-  selector:
-    app: qbitorrent
-  ports:
-    - name: torrent-tcp
-      protocol: TCP
-      port: 31456
-      targetPort: 31456
-      nodePort: 31456
-    - name: torrent-udp
-      protocol: UDP
-      port: 31456
-      targetPort: 31456
-      nodePort: 31456
 ---
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
