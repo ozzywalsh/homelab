@@ -28,7 +28,7 @@ spec:
     image:
       tag: "10.11.11"
     replicaCount: 1
-    securityContext:
+    podSecurityContext:
       supplementalGroups: [44]
     persistence:
       config:
