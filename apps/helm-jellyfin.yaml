@@ -25,6 +25,8 @@ spec:
   install:
     createNamespace: true
   values:
+    image:
+      tag: "10.11.11"
     replicaCount: 1
     securityContext:
       supplementalGroups: [44]
