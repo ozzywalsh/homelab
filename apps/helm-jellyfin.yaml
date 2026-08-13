@@ -26,6 +26,8 @@ spec:
     createNamespace: true
   values:
     replicaCount: 1
+    securityContext:
+      supplementalGroups: [44]
     persistence:
       config:
         enabled: true
