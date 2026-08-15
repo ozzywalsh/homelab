@@ -21,40 +21,6 @@ spec:
       securityContext:
         fsGroup: 1000
       containers:
-      - name: gluetun
-        image: ghcr.io/qdm12/gluetun:v3.41.1
-        securityContext:
-          capabilities:
-            add:
-              - NET_ADMIN
-        env:
-          - name: VPN_SERVICE_PROVIDER
-            value: protonvpn
-
-          - name: VPN_TYPE
-            value: wireguard
-
-          # Store these in a Secret in production
-          - name: WIREGUARD_PRIVATE_KEY
-            valueFrom:
-              secretKeyRef:
-                name: proton-wireguard
-                key: private-key
-
-          - name: WIREGUARD_ADDRESSES
-            value: "10.2.0.2/32"
-
-          # Optional
-          - name: TZ
-            value: Europe/Dublin
-
-        volumeMounts:
-          - name: tun
-            mountPath: /dev/net/tun
-
-        ports:
-          - containerPort: 8080
-          - containerPort: 31456
         - name: prowlarr
           image: lscr.io/linuxserver/prowlarr:2.5.2
           env:
