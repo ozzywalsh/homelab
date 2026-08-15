@@ -65,7 +65,7 @@ spec:
   entryPoints:
     - web
   routes:
-    - match: Host('radarr.homelab')
+    - match: Host(`radarr.homelab`)
       kind: Rule
       services:
         - name: radarr
