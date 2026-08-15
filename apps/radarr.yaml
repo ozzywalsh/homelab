@@ -33,7 +33,7 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
-            - name: nfs-jellyfin-data
+            - name: jellyfin-data
               mountPath: /data/downloads
       volumes:
         - name: config
