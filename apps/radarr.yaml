@@ -41,7 +41,7 @@ spec:
             claimName: radarr-config
         - name: jellyfin-data
           persistentVolumeClaim:
-            claimName: qbitorrent-downloads-pvc
+            claimName: qbittorrent-downloads-pvc
 ---
 apiVersion: v1
 kind: Service
