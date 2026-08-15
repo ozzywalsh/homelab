@@ -69,3 +69,4 @@ spec:
       kind: Rule
       services:
         - name: radarr
+          port: 7878
