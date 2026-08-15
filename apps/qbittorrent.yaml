@@ -77,15 +77,17 @@ spec:
         volumeMounts:
           - name: config
             mountPath: /config
-          - name: downloads
+          - name: data
             mountPath: /downloads
+          - name: data
+            mountPath: /data
 
       volumes:
         - name: config
           persistentVolumeClaim:
             claimName: qbittorrent-config-pvc
 
-        - name: downloads
+        - name: data
           persistentVolumeClaim:
             claimName: qbittorrent-downloads-pvc
 

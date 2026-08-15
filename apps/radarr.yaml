@@ -32,7 +32,7 @@ spec:
             - name: config
               mountPath: /config
             - name: jellyfin-data
-              mountPath: /data/downloads
+              mountPath: /downloads
       volumes:
         - name: config
           persistentVolumeClaim:
