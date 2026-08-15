@@ -78,8 +78,6 @@ spec:
           - name: config
             mountPath: /config
           - name: data
-            mountPath: /downloads
-          - name: data
             mountPath: /data
 
       volumes:
