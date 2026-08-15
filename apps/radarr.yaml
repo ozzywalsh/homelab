@@ -31,13 +31,13 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
-            - name: jellyfin-data
-              mountPath: /downloads
+            - name: data
+              mountPath: /data
       volumes:
         - name: config
           persistentVolumeClaim:
             claimName: radarr-config
-        - name: jellyfin-data
+        - name: data
           persistentVolumeClaim:
             claimName: qbittorrent-downloads-pvc
 ---
