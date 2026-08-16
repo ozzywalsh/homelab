@@ -81,7 +81,7 @@ spec:
     volumeHandle: media
     volumeAttributes:
       server: 192.168.1.62
-      share: /tanks/media
+      share: /tank/media
   mountOptions:
     - hard
     - nfsvers=3
