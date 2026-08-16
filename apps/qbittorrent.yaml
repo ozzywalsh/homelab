@@ -79,6 +79,8 @@ spec:
             mountPath: /config
           - name: data
             mountPath: /data
+          - name: new-data
+            mountPath: /new-data
 
       volumes:
         - name: config
@@ -88,6 +90,10 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: qbittorrent-downloads-pvc
+
+        - name: new-data
+          persistentVolumeClaim:
+            claimName: nas-nfs-pvc
 
         - name: tun
           hostPath:
