@@ -75,6 +75,21 @@ spec:
       targetPort: 8096
   type: ClusterIP
 ---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: jellyfin
+  namespace: qbitorrent
+spec:
+  entryPoints:
+    - web 
+  routes:
+    - match: Host(`jellyfin.homelab`)
+      kind: Rule
+      services:
+        - name: jellyfin
+          port: 8080
+---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -94,4 +109,3 @@ spec:
           kind: Service
           name: jellyfin
           port: 8096
-
