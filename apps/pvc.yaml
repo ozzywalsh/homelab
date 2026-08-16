@@ -106,8 +106,9 @@ metadata:
   name: inter-downloads-and-history
   namespace: qbitorrent
 spec:
+  storageClassName: local-path
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   resources:
     requests:
       storage: 250Gi
