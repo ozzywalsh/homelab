@@ -85,6 +85,7 @@ metadata:
   namespace: qbitorrent
 spec:
 spec:
+  storageClassName: "'
   accessModes:
     - ReadWriteMany
   resources:
