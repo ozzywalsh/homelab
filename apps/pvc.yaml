@@ -85,6 +85,7 @@ spec:
   mountOptions:
     - hard
     - nfsvers=3
+    - nolock
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
