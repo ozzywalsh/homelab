@@ -39,7 +39,7 @@ spec:
             claimName: radarr-config
         - name: data
           persistentVolumeClaim:
-            claimName: qbittorrent-downloads-pvc
+            claimName: media
 ---
 apiVersion: v1
 kind: Service

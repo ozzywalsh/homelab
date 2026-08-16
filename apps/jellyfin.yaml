@@ -21,7 +21,7 @@ spec:
           claimName: jellyfin-config-pvc
       - name: jellyfin-data
         persistentVolumeClaim:
-          claimName: qbitorrent-downloads-pvc
+          claimName: media
       containers:
       - env:
         - name: TZ
