@@ -15,19 +15,6 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: qbittorrent-downloads-pvc
-  namespace: qbitorrent
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: local-path
-  resources:
-    requests:
-      storage: 100Gi
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
   name: qbittorrent-config-pvc
   namespace: qbitorrent
 spec:
