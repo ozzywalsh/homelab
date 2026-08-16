@@ -99,4 +99,15 @@ spec:
   resources:
     requests:
       storage: 500Gi
-
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: inter-downloads-and-history
+  namespace: qbitorrent
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 250Gi

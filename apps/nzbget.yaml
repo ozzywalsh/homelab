@@ -35,6 +35,9 @@ spec:
             mountPath: /config
           - name: data
             mountPath: /data
+          - mountPath: /config/persistence/inter
+            name: inter-downloads-and-history
+            subPath: inter
       volumes:
         - name: config
           persistentVolumeClaim:
@@ -42,6 +45,9 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: media
+        - name: inter-downloads-and-history
+          persistentVolumeClaim:
+            claimName: inter-downloads-and-history
 ---
 apiVersion: v1
 kind: Service
