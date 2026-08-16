@@ -93,7 +93,7 @@ spec:
 
         - name: new-data
           persistentVolumeClaim:
-            claimName: nas-nfs-pvc
+            claimName: media
 
         - name: tun
           hostPath:
