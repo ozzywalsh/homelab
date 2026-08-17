@@ -36,3 +36,5 @@ spec:
       secret:
         name: tailscale-operator-oauth
 
+    apiServerProxyConfig:
+      mode: "true"
