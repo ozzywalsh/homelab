@@ -126,6 +126,19 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
+  name: new-media
+  namespace: qbitorrent
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: "media"
+  resources:
+    requests:
+      storage: 500Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
   name: media
   namespace: qbitorrent
 spec:
