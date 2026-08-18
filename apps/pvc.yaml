@@ -101,6 +101,29 @@ spec:
     - nolock
 ---
 apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: new-media-pv
+  namespace: qbitorrent
+spec:
+  capacity:
+    storage: 500Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: "media"
+  csi:
+    driver: nfs.csi.k8s.io
+    volumeHandle: wd_elements
+    volumeAttributes:
+      server: 192.168.1.62
+      share: /mnt/wd_elements/media
+  mountOptions:
+    - hard
+    - nfsvers=3
+    - nolock
+---
+apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: media
