@@ -5,6 +5,7 @@ metadata:
 resources:
   - namespace-observability.yaml
   - namespace-opentelemetry-operator-system.yaml
+  - namespace-obi-system.yaml
   - helm-opentelemetry-operator.yaml
   - obi.yaml
   - opentelemetrycollector-agent.yaml
