@@ -59,3 +59,8 @@ spec:
 
     prometheus-pushgateway:
       enabled: false
+   
+
+    serverFiles:
+      prometheus.yml:
+        scrape_configs: []
