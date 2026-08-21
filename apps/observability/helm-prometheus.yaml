@@ -47,6 +47,10 @@ spec:
         enabled: true
         size: 20Gi
     
+    
+    alertmanager:
+      enabled: false
+
     kube-state-metrics:
       enabled: false
 
