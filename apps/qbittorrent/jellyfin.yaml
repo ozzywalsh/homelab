@@ -22,6 +22,9 @@ spec:
       - name: jellyfin-data
         persistentVolumeClaim:
           claimName: media
+      - name: jellyfin-backups
+        persistentVolumeClaim:
+          claimName: jellyfin-backups
       containers:
       - env:
         - name: TZ
@@ -58,6 +61,8 @@ spec:
         volumeMounts:
         - mountPath: /config
           name: jellyfin-config
+        - mountPath: /config/data/backups
+          name: jellyfin-backups
         - mountPath: /data
           name: jellyfin-data
 ---

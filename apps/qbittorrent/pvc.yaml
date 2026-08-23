@@ -103,6 +103,29 @@ spec:
 apiVersion: v1
 kind: PersistentVolume
 metadata:
+  name: backups-pv
+  namespace: qbitorrent
+spec:
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: "backups"
+  csi:
+    driver: nfs.csi.k8s.io
+    volumeHandle: backups
+    volumeAttributes:
+      server: 192.168.1.62
+      share: /tank/backups
+  mountOptions:
+    - hard
+    - nfsvers=3
+    - nolock
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
   name: new-media-pv
   namespace: qbitorrent
 spec:
@@ -148,6 +171,19 @@ spec:
   resources:
     requests:
       storage: 500Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jellyfin-backups
+  namespace: qbitorrent
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: "backups"
+  resources:
+    requests:
+      storage: 100Gi
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
