@@ -91,3 +91,7 @@ data:
       static_configs:
       - targets:
         - node-exporter.observability.svc.cluster.local:9100
+    - job_name: kube-state-metrics
+      static_configs:
+      - targets:
+        - kube-state-metrics.observability.svc.cluster.local:8080
