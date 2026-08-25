@@ -9,3 +9,5 @@ resources:
   - helm-opentelemetry-operator.yaml
   - obi.yaml
   - opentelemetrycollector-agent.yaml
+  - prometheus.yaml
+  - grafana.yaml
