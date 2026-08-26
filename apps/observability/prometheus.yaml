@@ -95,3 +95,7 @@ data:
       static_configs:
       - targets:
         - kube-state-metrics.observability.svc.cluster.local:8080
+    - job_name: freebsd-nas
+      static_configs:
+      - targets:
+        - 192.168.1.62:9100
