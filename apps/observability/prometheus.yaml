@@ -120,7 +120,7 @@ data:
             expr: up == 0
             for: 5m
             labels:
-            severity: critical
+              severity: critical
             annotations:
-            summary: "Target is down"
-            description: "{{ $labels.job }} target {{ $labels.instance }} has been down for more than 5 minutes."
+              summary: "Target is down"
+              description: "{{ $labels.job }} target {{ $labels.instance }} has been down for more than 5 minutes."
