@@ -9,6 +9,7 @@ resources:
   - obi.yaml
   - opentelemetrycollector-agent.yaml
   - prometheus.yaml
+  - alertmanager.yaml
   - node-exporter.yaml
   - kube-state-metrics.yaml
   - grafana.yaml
