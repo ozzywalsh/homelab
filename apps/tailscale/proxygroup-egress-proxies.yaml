@@ -1,0 +1,22 @@
+apiVersion: tailscale.com/v1alpha1
+kind: ProxyGroup
+metadata:
+  name: egress-proxies
+spec:
+  type: egress
+  replicas: 2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-tailnet-device
+  annotations:
+    tailscale.com/tailnet-fqdn: "jellyfin-proxy.tail4ce005.ts.net"
+    tailscale.com/proxy-group: "egress-proxies"
+spec:
+  type: ExternalName
+  externalName: placeholder
+  ports:
+    - port: 9100
+      protocol: TCP
+      name: http
