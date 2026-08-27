@@ -19,7 +19,7 @@ data:
       - name: telegram
         telegram_configs:
           - bot_token_file: /etc/alertmanager/secrets/bot-token
-            chat_id: YOUR_CHAT_ID
+            chat_id: 1942314842
             send_resolved: true
             message: |
               {{ if eq .Status "firing" }}🚨 FIRING{{ else }}✅ RESOLVED{{ end }}
