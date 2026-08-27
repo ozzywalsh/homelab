@@ -88,7 +88,7 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: alertmanagager-data
+  name: alertmananager-data
   namespace: observability
 spec:
   accessModes:
