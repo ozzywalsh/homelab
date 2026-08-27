@@ -1,0 +1,73 @@
+name: Validate Flux
+
+on:
+  pull_request:
+    paths:
+      - "clusters/**"
+      - "infrastructure/**"
+      - "apps/**"
+      - "kustomization.yaml"
+      - ".github/workflows/flux-validate.yaml"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  validate:
+    name: Validate manifests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Setup Flux
+        uses: fluxcd/flux2/action@main
+
+      - name: Setup Kustomize
+        uses: fluxcd/pkg/actions/kustomize@main
+
+      - name: Check Flux manifests
+        run: flux check --pre
+
+      - name: Build cluster manifests
+        run: |
+          mkdir -p /tmp/rendered
+
+          for dir in clusters/*; do
+            if [ -f "$dir/kustomization.yaml" ]; then
+              name="$(basename "$dir")"
+
+              echo "::group::Rendering $name"
+              kustomize build "$dir" > "/tmp/rendered/$name.yaml"
+              echo "::endgroup::"
+            fi
+          done
+
+      - name: Install kubeconform
+        uses: bmuschko/setup-kubeconform@v1
+
+      - name: Validate Kubernetes manifests
+        run: |
+          kubeconform \
+            -strict \
+            -summary \
+            -output pretty \
+            -kubernetes-version 1.33.0 \
+            /tmp/rendered/*.yaml
+
+      - name: Validate Flux manifests
+        run: |
+          flux check --pre
+          flux build kustomization --help >/dev/null
+
+      - name: Check YAML
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: .
+          config_file: .yamllint.yaml
+
