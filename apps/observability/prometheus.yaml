@@ -102,4 +102,4 @@ data:
     - job_name: manderley-proxy
       static_configs:
       - targets:
-        - jellyfin-proxy.tail4ce005.ts.net:9100
+        - ts-manderley-proxy-4f25c.tailscale.svc.cluster.local:9100
