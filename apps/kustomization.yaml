@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - helm-csi-driver-nfs.yaml
   - storage-class-nfs-csi.yaml
+  - storage-class-local-path-retain.yaml
   - generic-device-plugin.yaml
   - cert-manager
   - tailscale
