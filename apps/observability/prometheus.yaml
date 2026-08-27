@@ -82,6 +82,13 @@ data:
       scrape_interval: 15s
       scrape_timeout: 10s
       evaluation_interval: 15s
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+                - "alertmanager.observability.svc.cluster.local:9093"
+    rule_files:
+      - "/etc/prometheus/alert_rules.yml"
     scrape_configs:
     - job_name: prometheus
       static_configs:
@@ -103,3 +110,17 @@ data:
       static_configs:
       - targets:
         - ts-manderley-proxy-4f25c.tailscale.svc.cluster.local:9100
+
+
+  alert_rules.yml: |
+    groups:
+      - name: target-down
+        rules:
+          - alert: TargetDown
+            expr: up == 0
+            for: 5m
+            labels:
+            severity: critical
+            annotations:
+            summary: "Target is down"
+            description: "{{ $labels.job }} target {{ $labels.instance }} has been down for more than 5 minutes."
