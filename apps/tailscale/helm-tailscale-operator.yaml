@@ -13,7 +13,7 @@ metadata:
   name: tailscale-operator
   namespace: tailscale
 spec:
-  interval: 30m
+  interval: 15m
 
   chart:
     spec:
