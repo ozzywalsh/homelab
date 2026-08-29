@@ -111,7 +111,7 @@ spec:
   ingressClassName: tailscale
   tls:
     - hosts:
-        - jellyfin
+      - jellyfin-ha
   rules:
     - host: jellyfin
       http:
@@ -123,4 +123,3 @@ spec:
                 name: jellyfin
                 port:
                   number: 8096
-
