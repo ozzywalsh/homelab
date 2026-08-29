@@ -5,4 +5,5 @@ kind: Kustomization
 resources:
   - namespace-tailscale.yaml
   - helm-tailscale-operator.yaml
+  - proxygroup-ingress-proxies.yaml
   - proxygroup-egress-proxies.yaml

@@ -105,6 +105,8 @@ kind: Ingress
 metadata:
   name: jellyfin-tailscale
   namespace: qbitorrent
+  annotations:
+    tailscale.com/proxy-group: ingress-proxies
 spec:
   ingressClassName: tailscale
   tls:
