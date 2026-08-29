@@ -113,8 +113,7 @@ spec:
     - hosts:
       - jellyfin
   rules:
-    - host: jellyfin
-      http:
+    - http:
         paths:
           - path: /
             pathType: Prefix
