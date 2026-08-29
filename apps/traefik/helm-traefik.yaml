@@ -27,6 +27,8 @@ spec:
   values:
     api:
       dashboard: true
+    deployment:
+      replicas: 2
     ingressRoute:
       dashboard:
         enabled: true
@@ -34,9 +36,16 @@ spec:
       web:
         port: 8000
         exposedPort: 80
+        expose:
+          default: true
+        protocol: TCP
       websecure:
         port: 8443
         exposedPort: 443
+        expose:
+          default: true
+        protocol: TCP
     service:
       spec:
         type: LoadBalancer
+        externalTrafficPolicy: Local
