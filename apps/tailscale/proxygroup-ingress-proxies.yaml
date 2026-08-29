@@ -1,3 +1,4 @@
+---
 apiVersion: tailscale.com/v1alpha1
 kind: ProxyGroup
 metadata:
@@ -5,5 +6,19 @@ metadata:
   namespace: tailscale
 spec:
   type: ingress
+  proxyClass: prod
   replicas: 2
+---
+apiVersion: tailscale.com/v1alpha1
+kind: ProxyClass
+metadata:
+  name: prod
+spec:
+  staticEndpoints:
+    nodePort:
+      ports:
+      - port: 31667
+        endPort: 31680
+      selector:
+        kubernetes.io/os: linux
 
