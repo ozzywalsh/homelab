@@ -32,9 +32,9 @@ spec:
         enabled: true
     ports:
       web:
-        nodePort: 30080
+        nodePort: 80
       websecure:
-        nodePort: 30443
+        nodePort: 443
     service:
       spec:
-        type: NodePort
+        type: LoadBalancer
