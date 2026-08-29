@@ -3,5 +3,13 @@ kind: Kustomization
 
 resources:
   - metallb-native.yaml
-    # - 192.168.1.200/28
   - metallb-l2-config.yaml
+
+patches:
+  - target:
+      kind: DaemonSet
+      name: speaker
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: --ignore-exclude-lb
