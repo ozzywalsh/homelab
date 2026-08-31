@@ -13,3 +13,4 @@ resources:
   - observability
   - traefik
   - qbittorrent
+  - speedtest
