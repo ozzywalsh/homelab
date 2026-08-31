@@ -1,0 +1,141 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: speedtest-tracker-config
+  namespace: speedtest
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: speedtest-tracker
+  namespace: speedtest
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: speedtest-tracker
+  template:
+    metadata:
+      labels:
+        app: speedtest-tracker
+    spec:
+      containers:
+        - name: speedtest-tracker
+          image: lscr.io/linuxserver/speedtest-tracker:1.15.0
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+
+          env:
+            - name: PUID
+              value: "1000"
+
+            - name: PGID
+              value: "1000"
+
+            - name: TZ
+              value: "Europe/Dublin"
+
+            - name: DISPLAY_TIMEZONE
+              value: "Europe/Dublin"
+
+            - name: APP_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: speedtest-tracker
+                  key: APP_KEY
+
+            - name: APP_URL
+              value: "http://speedtest-tracker.speedtest.svc.cluster.local"
+
+            - name: DB_CONNECTION
+              value: "sqlite"
+
+            # Run every 6 hours.
+            # Leave empty if you don't want scheduled tests.
+            - name: SPEEDTEST_SCHEDULE
+              value: "0 */6 * * *"
+
+            # Optional: comma-separated Ookla server IDs.
+            # Empty means use the default server selection.
+            - name: SPEEDTEST_SERVERS
+              value: ""
+
+            # Keep results indefinitely.
+            - name: PRUNE_RESULTS_OLDER_THAN
+              value: "0"
+
+          volumeMounts:
+            - name: config
+              mountPath: /config
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: speedtest-tracker-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: speedtest-tracker
+  namespace: speedtest
+spec:
+  type: LoadBalancer
+  selector:
+    app: speedtest-tracker
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: speedtest-tracker
+  namespace: speedtest
+spec:
+  entryPoints:
+    - web 
+  routes:
+    - match: Host(`speedtest-tracker.homelab`)
+      kind: Rule
+      services:
+        - name: speedtest-tracker
+          port: 80
+---
