@@ -29,7 +29,7 @@ spec:
       - env:
         - name: TZ
           value: Europe/Dublin
-        image: jellyfin/jellyfin:10.11.11
+        image: jellyfin/jellyfin:12.0
         name: jellyfin
         ports:
         - containerPort: 8096
