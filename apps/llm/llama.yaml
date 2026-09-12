@@ -9,6 +9,16 @@ spec:
   resources:
     requests:
       storage: 32Gi
+
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: low-priority-llm
+value: -10
+globalDefault: false
+description: LLM workloads should yield to important services
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -18,7 +28,6 @@ metadata:
 spec:
   replicas: 1
 
-  # Important because the model PVC is ReadWriteOnce.
   strategy:
     type: Recreate
 
@@ -32,10 +41,13 @@ spec:
         app: llama
 
     spec:
+      priorityClassName: low-priority-llm
+
       terminationGracePeriodSeconds: 120
 
       containers:
         - name: llama
+
           image: ghcr.io/ggml-org/llama.cpp:server
 
           imagePullPolicy: IfNotPresent
@@ -44,67 +56,83 @@ spec:
             - /app/llama-server
 
           args:
-            # llama.cpp downloads the model directly from Hugging Face.
-            #
-            # The Q4_K_M file is ~18.6 GB.
+
+            # --------------------------------------------------
+            # Model
+            # --------------------------------------------------
+
             - --hf-repo
             - tensorblock/Qwen_Qwen3-Coder-30B-A3B-Instruct-GGUF
-            - --hf-file
-            - Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf
 
-            # API
+            - --hf-file
+            - Qwen3-Coder-30B-A3B-Instruct-Q3_K_M.gguf
+
+            # --------------------------------------------------
+            # HTTP API
+            # --------------------------------------------------
+
             - --host
             - 0.0.0.0
+
             - --port
             - "8080"
 
+            # --------------------------------------------------
             # CPU
-            - --threads
-            - "16"
-            - --threads-batch
-            - "16"
+            # --------------------------------------------------
 
-            # Context
+            - --threads
+            - "12"
+
+            - --threads-batch
+            - "12"
+
+            # --------------------------------------------------
+            # Context / concurrency
+            # --------------------------------------------------
+
             - --ctx-size
             - "16384"
 
-            # One request at a time initially.
             - --parallel
             - "1"
 
+            # --------------------------------------------------
             # Batching
+            # --------------------------------------------------
+
             - --batch-size
             - "512"
+
             - --ubatch-size
             - "256"
 
-            # Continuous batching
             - --cont-batching
 
-            # Metrics
+            # --------------------------------------------------
+            # Monitoring
+            # --------------------------------------------------
+
             - --metrics
 
           env:
-            # Persist llama.cpp's Hugging Face cache.
-            #
-            # Without this, a recreated pod may download the
-            # model again.
+            # Persist llama.cpp's HF model cache.
             - name: LLAMA_CACHE
               value: /models/.cache
+
+          resources:
+            requests:
+              cpu: "4"
+              memory: "18Gi"
+
+            limits:
+              cpu: "12"
+              memory: "32Gi"
 
           ports:
             - name: http
               containerPort: 8080
               protocol: TCP
-
-          resources:
-            requests:
-              cpu: "12"
-              memory: "24Gi"
-
-            limits:
-              cpu: "16"
-              memory: "40Gi"
 
           volumeMounts:
             - name: models
@@ -114,6 +142,7 @@ spec:
             httpGet:
               path: /health
               port: http
+
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 60
@@ -122,6 +151,7 @@ spec:
             httpGet:
               path: /health
               port: http
+
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 6
@@ -130,6 +160,7 @@ spec:
             httpGet:
               path: /health
               port: http
+
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 3
@@ -138,12 +169,14 @@ spec:
         - name: models
           persistentVolumeClaim:
             claimName: llama-models
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: llama
   namespace: llm
+
 spec:
   type: ClusterIP
 
@@ -155,4 +188,3 @@ spec:
       port: 8080
       targetPort: 8080
       protocol: TCP
-
