@@ -1,0 +1,158 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: llama-models
+  namespace: llm
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 32Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama
+  namespace: llm
+spec:
+  replicas: 1
+
+  # Important because the model PVC is ReadWriteOnce.
+  strategy:
+    type: Recreate
+
+  selector:
+    matchLabels:
+      app: llama
+
+  template:
+    metadata:
+      labels:
+        app: llama
+
+    spec:
+      terminationGracePeriodSeconds: 120
+
+      containers:
+        - name: llama
+          image: ghcr.io/ggml-org/llama.cpp:server
+
+          imagePullPolicy: IfNotPresent
+
+          command:
+            - /app/llama-server
+
+          args:
+            # llama.cpp downloads the model directly from Hugging Face.
+            #
+            # The Q4_K_M file is ~18.6 GB.
+            - --hf-repo
+            - tensorblock/Qwen_Qwen3-Coder-30B-A3B-Instruct-GGUF
+            - --hf-file
+            - Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf
+
+            # API
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8080"
+
+            # CPU
+            - --threads
+            - "16"
+            - --threads-batch
+            - "16"
+
+            # Context
+            - --ctx-size
+            - "16384"
+
+            # One request at a time initially.
+            - --parallel
+            - "1"
+
+            # Batching
+            - --batch-size
+            - "512"
+            - --ubatch-size
+            - "256"
+
+            # Continuous batching
+            - --cont-batching
+
+            # Metrics
+            - --metrics
+
+          env:
+            # Persist llama.cpp's Hugging Face cache.
+            #
+            # Without this, a recreated pod may download the
+            # model again.
+            - name: LLAMA_CACHE
+              value: /models/.cache
+
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+
+          resources:
+            requests:
+              cpu: "12"
+              memory: "24Gi"
+
+            limits:
+              cpu: "16"
+              memory: "40Gi"
+
+          volumeMounts:
+            - name: models
+              mountPath: /models
+
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 60
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: llama-models
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llama
+  namespace: llm
+spec:
+  type: ClusterIP
+
+  selector:
+    app: llama
+
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+
