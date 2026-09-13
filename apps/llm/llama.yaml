@@ -192,8 +192,8 @@ spec:
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: speedtest-tracker
-  namespace: speedtest
+  name: llama
+  namespace: llm
 spec:
   entryPoints:
     - web 
@@ -201,7 +201,7 @@ spec:
     - match: Host(`llama.homelab`)
       kind: Rule
       services:
-        - name: speedtest-tracker
+        - name: llama
           port: 8080
 ---
 
