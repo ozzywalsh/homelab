@@ -188,3 +188,20 @@ spec:
       port: 8080
       targetPort: 8080
       protocol: TCP
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: speedtest-tracker
+  namespace: speedtest
+spec:
+  entryPoints:
+    - web 
+  routes:
+    - match: Host(`llama.homelab`)
+      kind: Rule
+      services:
+        - name: speedtest-tracker
+          port: 8080
+---
+
