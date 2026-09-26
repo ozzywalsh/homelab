@@ -1,0 +1,7 @@
+apiVersion: tailscale.com/v1alpha1
+kind: PeerRelay
+metadata:
+  name: mail
+spec:
+  replicas: 2
+
