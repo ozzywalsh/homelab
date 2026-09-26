@@ -7,3 +7,4 @@ resources:
   - helm-tailscale-operator.yaml
   - proxygroup-ingress-proxies.yaml
   - proxygroup-egress-proxies.yaml
+  - peerrelay-main.yaml
