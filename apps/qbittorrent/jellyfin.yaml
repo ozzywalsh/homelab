@@ -15,6 +15,7 @@ spec:
       labels:
         app: jellyfin
     spec:
+      serviceAccountName: jellyfin-tailscale
       volumes:
       - name: jellyfin-config
         persistentVolumeClaim:
@@ -85,10 +86,18 @@ spec:
         env:
         - name: TS_USERSPACE
           value: "false"
-        # state on the PVC instead of containerboot's default kube Secret,
-        # which would additionally require RBAC on secret "tailscale"
-        - name: TS_STATE_DIR
-          value: /var/lib/tailscale
+        - name: TS_KUBE_SECRET
+          value: tailscale
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_UID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.uid
+        - name: TS_EXTRA_ARGS
+          value: --advertise-tags=tag:k8s
         - name: TS_HOSTNAME
           value: jellyfin
         - name: TS_OAUTH_CLIENT_ID
@@ -101,8 +110,6 @@ spec:
             secretKeyRef:
               name: jellyfin-tailscale-auth
               key: client-secret
-        - name: TS_EXTRA_ARGS
-          value: --advertise-tags=tag:k8s
         readinessProbe:
           exec:
             command:
@@ -149,3 +156,39 @@ spec:
       services:
         - name: jellyfin
           port: 8096
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jellyfin-tailscale
+  namespace: qbitorrent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jellyfin-tailscale
+  namespace: qbitorrent
+rules:
+  # containerboot persists tailscaled state in the "tailscale" kube secret
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [tailscale]
+    verbs: [get, create, update, patch]
+  # tailscaled writes pod events for debugging
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [create, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jellyfin-tailscale
+  namespace: qbitorrent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: jellyfin-tailscale
+subjects:
+  - kind: ServiceAccount
+    name: jellyfin-tailscale
+    namespace: qbitorrent
