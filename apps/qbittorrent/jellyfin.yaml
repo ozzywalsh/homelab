@@ -110,8 +110,26 @@ spec:
             secretKeyRef:
               name: tailscale-oauth
               key: TS_CLIENT_SECRET
-        - name: TS_ACCEPT_DNS
-          value: "true"
+        # TS_ACCEPT_DNS must stay unset: accepting MagicDNS DNS rewrites the pod
+        # resolv.conf to 100.100.100.100, which breaks containerboot's kube API
+        # access on subsequent boots (client-side devices use MagicDNS; this
+        # sidecar has no need for it)
+        # tailscale serve: TLS 443 -> jellyfin HTTP 8096 so https://jellyfin.<tailnet>.ts.net works
+        # without a port suffix; ${TS_CERT_DOMAIN} is substituted by tailscaled
+        - name: TS_SERVE_CONFIG
+          value: |
+            {
+              "TCP": {
+                "443": { "HTTPS": true }
+              },
+              "Web": {
+                "${TS_CERT_DOMAIN}:443": {
+                  "Handlers": {
+                    "/": { "Proxy": "http://127.0.0.1:8096" }
+                  }
+                }
+              }
+            }
         readinessProbe:
           exec:
             command:
