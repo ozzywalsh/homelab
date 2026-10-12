@@ -100,16 +100,13 @@ spec:
           value: --advertise-tags=tag:k8s
         - name: TS_HOSTNAME
           value: jellyfin
-        - name: TS_OAUTH_CLIENT_ID
+        # containerboot only reads TS_AUTHKEY (not TS_OAUTH_*); OAuth clients
+        # are expressed in authkey form: oauth:<client-id>:<client-secret>
+        - name: TS_AUTHKEY
           valueFrom:
             secretKeyRef:
               name: jellyfin-tailscale-auth
-              key: client-id
-        - name: TS_OAUTH_CLIENT_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: jellyfin-tailscale-auth
-              key: client-secret
+              key: authkey
         readinessProbe:
           exec:
             command:
