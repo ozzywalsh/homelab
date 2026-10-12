@@ -115,7 +115,7 @@ spec:
         readinessProbe:
           exec:
             command:
-              - /usr/bin/tailscale
+              - /usr/local/bin/tailscale
               - status
           initialDelaySeconds: 5
           periodSeconds: 20
