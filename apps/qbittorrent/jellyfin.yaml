@@ -1,3 +1,25 @@
+# tailscale serve config: TLS-terminate *.ts.net on 443 and proxy to jellyfin's
+# HTTP listener. ${TS_CERT_DOMAIN} is substituted by containerboot on read.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jellyfin-tailscale-serve
+  namespace: qbitorrent
+data:
+  serve.json: |
+    {
+      "TCP": {
+        "443": { "HTTPS": true }
+      },
+      "Web": {
+        "${TS_CERT_DOMAIN}:443": {
+          "Handlers": {
+            "/": { "Proxy": "http://127.0.0.1:8096" }
+          }
+        }
+      }
+    }
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -33,6 +55,9 @@ spec:
         hostPath:
           path: /dev/net/tun
           type: CharDevice
+      - name: tsconfig
+        configMap:
+          name: jellyfin-tailscale-serve
       containers:
       - env:
         - name: TZ
@@ -116,20 +141,10 @@ spec:
         # sidecar has no need for it)
         # tailscale serve: TLS 443 -> jellyfin HTTP 8096 so https://jellyfin.<tailnet>.ts.net works
         # without a port suffix; ${TS_CERT_DOMAIN} is substituted by tailscaled
+        # TS_SERVE_CONFIG must be a PATH to a ServeConfig JSON file (containerboot
+        # main.go:64); inline JSON is fatal (fsnotify watch on the "directory" fails)
         - name: TS_SERVE_CONFIG
-          value: |
-            {
-              "TCP": {
-                "443": { "HTTPS": true }
-              },
-              "Web": {
-                "${TS_CERT_DOMAIN}:443": {
-                  "Handlers": {
-                    "/": { "Proxy": "http://127.0.0.1:8096" }
-                  }
-                }
-              }
-            }
+          value: /etc/tsconfig/serve.json
         readinessProbe:
           exec:
             command:
@@ -142,6 +157,9 @@ spec:
           name: tailscale-state
         - mountPath: /dev/net/tun
           name: tun
+        - mountPath: /etc/tsconfig
+          name: tsconfig
+          readOnly: true
 ---
 apiVersion: v1
 kind: Service
