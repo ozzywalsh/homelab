@@ -85,6 +85,10 @@ spec:
         env:
         - name: TS_USERSPACE
           value: "false"
+        # state on the PVC instead of containerboot's default kube Secret,
+        # which would additionally require RBAC on secret "tailscale"
+        - name: TS_STATE_DIR
+          value: /var/lib/tailscale
         - name: TS_HOSTNAME
           value: jellyfin
         - name: TS_OAUTH_CLIENT_ID
