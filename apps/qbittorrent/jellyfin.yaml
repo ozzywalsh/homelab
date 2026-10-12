@@ -169,11 +169,16 @@ metadata:
   name: jellyfin-tailscale
   namespace: qbitorrent
 rules:
-  # containerboot persists tailscaled state in the "tailscale" kube secret
+  # containerboot persists tailscaled state in the "tailscale" kube secret.
+  # create cannot be resourceNames-scoped: the object name is not yet known
+  # when the authorize check runs
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [create]
   - apiGroups: [""]
     resources: [secrets]
     resourceNames: [tailscale]
-    verbs: [get, create, update, patch]
+    verbs: [get, update, patch, delete]
   # tailscaled writes pod events for debugging
   - apiGroups: [""]
     resources: [events]
