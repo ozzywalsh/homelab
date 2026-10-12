@@ -110,6 +110,8 @@ spec:
             secretKeyRef:
               name: tailscale-oauth
               key: TS_CLIENT_SECRET
+        - name: TS_ACCEPT_DNS
+          value: "true"
         readinessProbe:
           exec:
             command:
