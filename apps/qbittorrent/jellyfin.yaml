@@ -74,7 +74,7 @@ spec:
         - mountPath: /data
           name: jellyfin-data
       - name: tailscale
-        image: tailscale/tailscale:v1.90
+        image: tailscale/tailscale:v1.102.5
         securityContext:
           runAsUser: 0
           allowPrivilegeEscalation: false
