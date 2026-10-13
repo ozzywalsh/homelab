@@ -6,7 +6,6 @@ resources:
   - nzbget.yaml
   - qbittorrent.yaml
   - jellyfin.yaml
-  - jellyfin-tailscale.yaml
   - sonarr.yaml
   - radarr.yaml
   - prowlarr.yaml

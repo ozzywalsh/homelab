@@ -5,3 +5,4 @@ kind: Kustomization
 resources:
   - namespace-cert-manager.yaml
   - helm-cert-manager.yaml
+  - issuer-letsencrypt-dns01.yaml

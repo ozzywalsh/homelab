@@ -90,15 +90,20 @@ metadata:
   name: jellyfin
   namespace: qbitorrent
 spec:
+  # websecure + tls (no secretRef -> TLSStore "default" wildcard): the
+  # tailnet tier. Public DNS points jellyfin.wlsh.dev at the node's
+  # tailscale IP, so remote access rides WireGuard and fails closed off-mesh.
   entryPoints:
-    - web 
+    - web
+    - websecure
+  tls: {}
   routes:
     - match: Host(`jellyfin.homelab`)
       kind: Rule
       services:
         - name: jellyfin
           port: 8096
-    - match: Host(`jellyfin.ozzywalsh.com`)
+    - match: Host(`jellyfin.wlsh.dev`)
       kind: Rule
       services:
         - name: jellyfin

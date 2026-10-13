@@ -27,8 +27,21 @@ spec:
   values:
     api:
       dashboard: true
+    # hostNetwork: the gateway binds :443 on the node host itself. Tailnet
+    # clients reach the node's tailscale IP directly -- a MetalLB VIP is
+    # unreachable from the tailnet, so the listener must live in the host
+    # netns, same as tailscaled. (NB: chart schema -- hostNetwork is a
+    # TOP-LEVEL value, but dnsPolicy lives under deployment.)
+    hostNetwork: true
     deployment:
-      replicas: 2
+      kind: DaemonSet
+      dnsPolicy: ClusterFirstWithHostNet
+    # single gateway node: replace in-flight (hostNetwork forbids
+    # maxUnavailable: 0); updateStrategy is a top-level chart value
+    updateStrategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxUnavailable: "100%"
     ingressRoute:
       dashboard:
         enabled: true
@@ -40,7 +53,9 @@ spec:
           default: true
         protocol: TCP
       websecure:
-        port: 8443
+        # Must be 443 (not 8443): with hostNetwork the entrypoint binds the
+        # real host port -- tailnet clients hit <node 100.x>:443 directly.
+        port: 443
         exposedPort: 443
         expose:
           default: true

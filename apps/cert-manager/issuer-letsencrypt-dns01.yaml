@@ -1,0 +1,19 @@
+# DNS-01 wildcard issuer: issuance only needs a TXT record, so the same
+# wildcard covers every routing tier (public DNS -> node tail IP, local DNS
+# override -> node LAN IP).
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    email: ozzywalsh@wlsh.dev
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token
