@@ -42,6 +42,10 @@ spec:
       type: RollingUpdate
       rollingUpdate:
         maxUnavailable: "100%"
+        # maxSurge must not be set when maxUnavailable is non-zero (api
+        # validation), and surge is wrong for hostNetwork regardless: the new
+        # pod would collide on the node's ports before the old one dies
+        maxSurge: 0
     ingressRoute:
       dashboard:
         enabled: true
