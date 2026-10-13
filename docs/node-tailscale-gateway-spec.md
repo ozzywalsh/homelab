@@ -172,7 +172,7 @@ delete issuer/cert; 4.3 revert helm values (MetalLB VIP path returns); DNS
 A records point back at nothing (delete). The jellyfin bespoke tailscale
 deployment stays until step 6, so tailnet access via the old path exists
 throughout 4.1-4.5.
-## 9. Implementation status (2026-10-13)
+## 9. Implementation status (2026-10-13) -- DEPLOYED
 
 - **Domain**: user confirmed `wlsh.dev` (NOT ozzywalsh.com).
 - **Talos**: `tailscale` extension v1.102.2 IS in the node image
@@ -202,3 +202,31 @@ throughout 4.1-4.5.
 - **DNS**: pending — user creates `A jellyfin.wlsh.dev -> <node tail IP>`
   in Cloudflare (or provides a scoped token; ddns token unusable, its
   secret is missing and pods are in CreateContainerConfigError).
+
+### Cutover outcome (all verified live)
+
+- Node registers as tailnet device `talos-c24-t0f` @ `100.123.186.12`
+  (extension, single NAT, Mac pings it DIRECT at ~3ms over LAN).
+- DNS `A jellyfin.wlsh.dev -> 100.123.186.12` published (created in CF dashboard).
+- Traefik DaemonSet hostNetwork 1/1, release Released, LB VIP still serving.
+- Wildcard `*.wlsh.dev` issued via DNS-01 (ClusterIssuer letsencrypt-prod,
+  cloudflare-api-token secret applied out-of-band, NOT in git).
+- https://jellyfin.wlsh.dev -> 302 valid TLS ~16ms over the mesh path.
+
+### Additional gotchas hit during rollout (all fixed in git)
+
+1. PodSecurity "baseline" rejects hostNetwork -> traefik ns labels enforce
+   privileged (apps/traefik/namespace.yaml).
+2. Chart DaemonSet also needs updateStrategy.rollingUpdate.maxSurge: 0
+   (maxSurge invalid with maxUnavailable non-zero, and surge would collide
+   on host ports).
+3. Port 9100 taken by node exporter on the host -> metrics entrypoint 9101.
+4. Non-root uid cannot bind :443 in host netns even with NET_BIND_SERVICE
+   -> run container as root, caps dropped except NET_BIND_SERVICE.
+5. spec.tls on one IngressRoute applies to ALL its entryPoints; a TLS-marked
+   router on plaintext web silently 404s -> LAN and tailnet routes are two
+   separate IngressRoutes (jellyfin / jellyfin-tailnet).
+6. Flux-prune caveat: resources applied out-of-band (the old
+   jellyfin-tailscale deployment) are NOT pruned by file deletion -- manual
+   kubectl delete was required; same for the cloudflare-api-token Secret
+   (kept out of git deliberately).
