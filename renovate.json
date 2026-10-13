@@ -1,0 +1,41 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":pinDigests"
+  ],
+  "kubernetes": {
+    "managerFilePatterns": [
+      "/apps/.+\\.yaml$/"
+    ]
+  },
+  "flux": {
+    "managerFilePatterns": [
+      "/apps/.+\\.yaml$/"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "Apps: automerge minor/patch/digest updates (exceptions handled below)",
+      "matchManagers": ["kubernetes", "flux"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "excludePackageNames": [
+        "jellyfin/jellyfin",
+        "ghcr.io/ggml-org/llama.cpp"
+      ],
+      "automerge": true
+    },
+    {
+      "description": "Jellyfin: never automerge (media library + transcode stack, manual review)",
+      "matchPackageNames": ["jellyfin/jellyfin"],
+      "automerge": false,
+      "labels": ["manual-review"]
+    },
+    {
+      "description": "llama.cpp: moving :server tag tracked via digest, manual review (GPU + model server)",
+      "matchPackageNames": ["ghcr.io/ggml-org/llama.cpp"],
+      "automerge": false,
+      "labels": ["manual-review"]
+    }
+  ]
+}
