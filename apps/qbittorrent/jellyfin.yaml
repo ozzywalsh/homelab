@@ -37,6 +37,17 @@ spec:
       labels:
         app: jellyfin
     spec:
+      # hostNetwork: run both containers in the node's netns so tailscaled
+      # goes through only the home router's NAT. In a flannel pod netns the
+      # connection is double-NATed (pod SNAT -> node SNAT -> router), and with
+      # the router reporting MappingVariesByDestIP: true (hard NAT) STUN hole
+      # punching never succeeds and every peer stays on DERP.
+      # Requires dnsPolicy override or the containers lose kube DNS.
+      # NB: with hostNetwork, tailscaled binds UDP 41641 on the node itself --
+      # tailscale instances sharing that node must run in pod netns (no
+      # hostNetwork) or they will fight over the port.
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       serviceAccountName: jellyfin-tailscale
       volumes:
       - name: jellyfin-config
