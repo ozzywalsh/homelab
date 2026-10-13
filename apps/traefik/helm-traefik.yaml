@@ -48,7 +48,10 @@ spec:
         maxSurge: 0
     ingressRoute:
       dashboard:
-        enabled: true
+        # Off: the chart's dashboard route has no auth middleware and the
+        # entrypoint was reachable unauthenticated from LAN and tailnet
+        # (:8080 -> /api/rawdata). Re-expose later behind auth if wanted.
+        enabled: false
     ports:
       web:
         port: 8000
