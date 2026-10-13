@@ -3,7 +3,6 @@
   "extends": [
     "config:recommended"
   ],
-  "pinDigests": true,
   "kubernetes": {
     "managerFilePatterns": [
       "/apps/.+\\.yaml$/"
@@ -15,6 +14,11 @@
     ]
   },
   "packageRules": [
+    {
+      "description": "no digest pinning: tag-only deps stay as tags; llama.cpp's moving :server tag is tracked by its already-pinned digest (manual review)",
+      "matchManagers": ["kubernetes", "flux"],
+      "pinDigests": false
+    },
     {
       "description": "Apps: automerge minor/patch/digest updates (exceptions handled below)",
       "matchManagers": ["kubernetes", "flux"],
