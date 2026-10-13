@@ -9,4 +9,5 @@ resources:
   - sonarr.yaml
   - radarr.yaml
   - prowlarr.yaml
+  - seerr.yaml
   - pvc.yaml

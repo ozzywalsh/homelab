@@ -1,0 +1,113 @@
+# Seerr (unified Overseerr/Jellyseerr successor) — friends' request front
+# door for the arr stack. It talks to sonarr/radarr via their API keys and
+# imports Jellyfin user accounts; no media mount needed, config-only PVC.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: seerr
+  namespace: qbitorrent
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: seerr
+  template:
+    metadata:
+      labels:
+        app: seerr
+    spec:
+      containers:
+        - name: seerr
+          image: ghcr.io/seerr-team/seerr:v3.5.0
+          env:
+            - name: TZ
+              value: Europe/Dublin
+          ports:
+            - containerPort: 5055
+              name: http-tcp
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+          readinessProbe:
+            httpGet:
+              path: /api/v1/settings/public
+              port: 5055
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          livenessProbe:
+            httpGet:
+              path: /api/v1/settings/public
+              port: 5055
+            initialDelaySeconds: 30
+            periodSeconds: 60
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          securityContext:
+            privileged: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: seerr-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: seerr
+  namespace: qbitorrent
+spec:
+  selector:
+    app: seerr
+  ports:
+    - protocol: TCP
+      port: 5055
+      targetPort: 5055
+  type: ClusterIP
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: seerr
+  namespace: qbitorrent
+# LAN tier only; friends' tier is the separate tailnet route below
+# (same web/websecure split rationale as the jellyfin NB comment).
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`seerr.homelab`)
+      kind: Rule
+      services:
+        - name: seerr
+          port: 5055
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: seerr-tailnet
+  namespace: qbitorrent
+spec:
+  # Tailnet tier: public DNS points seerr.wlsh.dev at the node's tailscale
+  # IP; only hosts that can reach the mesh (friends' machine-shared node,
+  # ACL-restricted to 443) get this. tls w/o secretRef -> TLSStore "default"
+  # (the *.wlsh.dev wildcard).
+  entryPoints:
+    - websecure
+  tls: {}
+  routes:
+    - match: Host(`seerr.wlsh.dev`)
+      kind: Rule
+      services:
+        - name: seerr
+          port: 5055

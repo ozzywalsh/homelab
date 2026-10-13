@@ -109,6 +109,10 @@ the VIP. The listener must bind on the node host. Change, in
 
 - Public zone (Cloudflare): `A jellyfin.wlsh.dev -> <node 100.x>`
   (+ one record per gateway node later). TTL 300, proxied: false.
+- Request tier needs no record: rides the zone's wildcard A
+  `*.wlsh.dev -> <node 100.x>` (seerr.wlsh.dev already resolves;
+  apps/qbittorrent/seerr.yaml tailnet IngressRoute + wildcard cert
+  cover it).
 - Local override (OPEN DECISION below): wildcard `*.wlsh.dev` ->
   gateway node LAN IP via home resolver (AdGuard/unbound/pfSense) so
   TV/lan devices without Tailscale work. Until that exists, LAN-only
@@ -140,12 +144,14 @@ the VIP. The listener must bind on the node host. Change, in
 - From a non-mesh remote client: connection timeout, not an error page.
 - No `0.0.0.0` port forwards exist on the router for 80/443.
 
-## 5. Friends access (jellyfin only)
+## 5. Friends access (jellyfin + seerr)
 
 - Primary: **machine sharing** — share the gateway node in Tailscale admin
   to friends' personal accounts. Their `jellyfin.wlsh.dev` resolves
   (public record) and routes because the node is shared. ACL rows allow
-  only port 443 on that node. Auth is Jellyfin's own accounts.
+  only port 443 on that node. Auth is Jellyfin's own accounts. Friends
+  request content via `seerr.wlsh.dev` (Seerr imports the same Jellyfin
+  accounts); sonarr/radarr stay off this tier.
 - Do NOT invite friends as tailnet users (seat limits, blast radius).
 - OPEN fallback (not in scope): Cloudflare Tunnel for a public tier.
 
