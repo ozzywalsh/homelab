@@ -8,7 +8,6 @@ resources:
   - generic-device-plugin.yaml
   - cert-manager
   - metallb
-  - tailscale
   - ddns
   - observability
   - traefik
