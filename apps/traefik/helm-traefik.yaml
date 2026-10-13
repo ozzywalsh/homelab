@@ -69,9 +69,16 @@ spec:
         port: 9101
         exposedPort: 9101
         protocol: TCP
+    # runAsUser 0: the default 65532 user cannot bind :443 in the host netns
+    # even with NET_BIND_SERVICE in its cap set (kernel refuses unprivileged-
+    # bind for non-root uids via this containerd path). Reference repo (hmlb)
+    # solved the same listener with a privileged container; root uid + capped
+    # capabilities is the middle ground.
+    podSecurityContext:
+      runAsUser: 0
+      runAsGroup: 0
+      runAsNonRoot: false
     securityContext:
-      # container runs non-root; websecure binds :443 in the host netns so it
-      # needs NET_BIND_SERVICE (privileged port as unprivileged user)
       allowPrivilegeEscalation: false
       capabilities:
         drop:
