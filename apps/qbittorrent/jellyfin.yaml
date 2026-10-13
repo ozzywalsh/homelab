@@ -89,20 +89,38 @@ kind: IngressRoute
 metadata:
   name: jellyfin
   namespace: qbitorrent
+# NB: spec.tls applies to ALL entryPoints of one IngressRoute, and a
+# TLS-marked router on a plaintext entrypoint silently stops matching
+# (symptom: 404 on web). So LAN (web) and tailnet (websecure+tls) are two
+# separate IngressRoutes.
 spec:
-  # websecure + tls (no secretRef -> TLSStore "default" wildcard): the
-  # tailnet tier. Public DNS points jellyfin.wlsh.dev at the node's
-  # tailscale IP, so remote access rides WireGuard and fails closed off-mesh.
   entryPoints:
     - web
-    - websecure
-  tls: {}
   routes:
     - match: Host(`jellyfin.homelab`)
       kind: Rule
       services:
         - name: jellyfin
           port: 8096
+    - match: Host(`jellyfin.wlsh.dev`)
+      kind: Rule
+      services:
+        - name: jellyfin
+          port: 8096
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: jellyfin-tailnet
+  namespace: qbitorrent
+spec:
+  # Tailnet tier: public DNS points jellyfin.wlsh.dev at the node's tailscale
+  # IP, remote access rides WireGuard, fails closed off-mesh. tls w/o
+  # secretRef -> TLSStore "default" (the *.wlsh.dev wildcard).
+  entryPoints:
+    - websecure
+  tls: {}
+  routes:
     - match: Host(`jellyfin.wlsh.dev`)
       kind: Rule
       services:
