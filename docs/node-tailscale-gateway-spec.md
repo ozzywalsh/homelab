@@ -230,3 +230,14 @@ throughout 4.1-4.5.
    jellyfin-tailscale deployment) are NOT pruned by file deletion -- manual
    kubectl delete was required; same for the cloudflare-api-token Secret
    (kept out of git deliberately).
+
+### Domain note (2026-10-13)
+
+`wlsh.dev` is the live mesh tier. If a future move to a handle-style domain is
+ever wanted: `ozz.dev` / `ozy.dev` showed no NS (unregistered at check time).
+`ozzy.dev` is held by an anonymized investor (registrar BB Online UK,
+registered 2026-08-21, 1-yr term) -- re-check via:
+  curl -sL https://rdap.org/domain/ozzy.dev | grep -
+  (or: any RDAP client) around 2027-08-21; drops get backorder-auctioned, so
+  treat it as unlikely, not planned. Migration cost if ever done: edit
+  Certificate dnsNames, swap A records, update IngressRoute host matchers.
