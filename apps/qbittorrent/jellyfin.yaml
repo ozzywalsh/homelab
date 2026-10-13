@@ -1,25 +1,7 @@
-# tailscale serve config: TLS-terminate *.ts.net on 443 and proxy to jellyfin's
-# HTTP listener. ${TS_CERT_DOMAIN} is substituted by containerboot on read.
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: jellyfin-tailscale-serve
-  namespace: qbitorrent
-data:
-  serve.json: |
-    {
-      "TCP": {
-        "443": { "HTTPS": true }
-      },
-      "Web": {
-        "${TS_CERT_DOMAIN}:443": {
-          "Handlers": {
-            "/": { "Proxy": "http://127.0.0.1:8096" }
-          }
-        }
-      }
-    }
----
+# tailscale runs as a separate hostNetwork deployment (jellyfin-tailscale.yaml)
+# rather than a sidecar: its WireGuard traffic needs the node's netns to punch
+# direct through the home router's NAT, but jellyfin itself must stay in pod
+# netns so 8096 is not exposed to the LAN.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -37,18 +19,6 @@ spec:
       labels:
         app: jellyfin
     spec:
-      # hostNetwork: run both containers in the node's netns so tailscaled
-      # goes through only the home router's NAT. In a flannel pod netns the
-      # connection is double-NATed (pod SNAT -> node SNAT -> router), and with
-      # the router reporting MappingVariesByDestIP: true (hard NAT) STUN hole
-      # punching never succeeds and every peer stays on DERP.
-      # Requires dnsPolicy override or the containers lose kube DNS.
-      # NB: with hostNetwork, tailscaled binds UDP 41641 on the node itself --
-      # tailscale instances sharing that node must run in pod netns (no
-      # hostNetwork) or they will fight over the port.
-      hostNetwork: true
-      dnsPolicy: ClusterFirstWithHostNet
-      serviceAccountName: jellyfin-tailscale
       volumes:
       - name: jellyfin-config
         persistentVolumeClaim:
@@ -59,16 +29,6 @@ spec:
       - name: jellyfin-backups
         persistentVolumeClaim:
           claimName: jellyfin-backups
-      - name: tailscale-state
-        persistentVolumeClaim:
-          claimName: jellyfin-tailscale-state
-      - name: tun
-        hostPath:
-          path: /dev/net/tun
-          type: CharDevice
-      - name: tsconfig
-        configMap:
-          name: jellyfin-tailscale-serve
       containers:
       - env:
         - name: TZ
@@ -109,68 +69,6 @@ spec:
           name: jellyfin-backups
         - mountPath: /data
           name: jellyfin-data
-      - name: tailscale
-        image: tailscale/tailscale:v1.102.5
-        securityContext:
-          runAsUser: 0
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-              - ALL
-            add:
-              - NET_ADMIN
-        env:
-        - name: TS_USERSPACE
-          value: "false"
-        - name: TS_KUBE_SECRET
-          value: tailscale
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: POD_UID
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.uid
-        - name: TS_EXTRA_ARGS
-          value: "--advertise-tags=tag:k8s --accept-routes"
-        - name: TS_HOSTNAME
-          value: jellyfin
-        - name: TS_CLIENT_ID
-          valueFrom:
-            secretKeyRef:
-              name: tailscale-oauth
-              key: TS_CLIENT_ID
-        - name: TS_CLIENT_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: tailscale-oauth
-              key: TS_CLIENT_SECRET
-        # TS_ACCEPT_DNS must stay unset: accepting MagicDNS DNS rewrites the pod
-        # resolv.conf to 100.100.100.100, which breaks containerboot's kube API
-        # access on subsequent boots (client-side devices use MagicDNS; this
-        # sidecar has no need for it)
-        # tailscale serve: TLS 443 -> jellyfin HTTP 8096 so https://jellyfin.<tailnet>.ts.net works
-        # without a port suffix; ${TS_CERT_DOMAIN} is substituted by tailscaled
-        # TS_SERVE_CONFIG must be a PATH to a ServeConfig JSON file (containerboot
-        # main.go:64); inline JSON is fatal (fsnotify watch on the "directory" fails)
-        - name: TS_SERVE_CONFIG
-          value: /etc/tsconfig/serve.json
-        readinessProbe:
-          exec:
-            command:
-              - /usr/local/bin/tailscale
-              - status
-          initialDelaySeconds: 5
-          periodSeconds: 20
-        volumeMounts:
-        - mountPath: /var/lib/tailscale
-          name: tailscale-state
-        - mountPath: /dev/net/tun
-          name: tun
-        - mountPath: /etc/tsconfig
-          name: tsconfig
-          readOnly: true
 ---
 apiVersion: v1
 kind: Service
@@ -205,44 +103,3 @@ spec:
       services:
         - name: jellyfin
           port: 8096
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: jellyfin-tailscale
-  namespace: qbitorrent
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: jellyfin-tailscale
-  namespace: qbitorrent
-rules:
-  # containerboot persists tailscaled state in the "tailscale" kube secret.
-  # create cannot be resourceNames-scoped: the object name is not yet known
-  # when the authorize check runs
-  - apiGroups: [""]
-    resources: [secrets]
-    verbs: [create]
-  - apiGroups: [""]
-    resources: [secrets]
-    resourceNames: [tailscale]
-    verbs: [get, update, patch, delete]
-  # tailscaled writes pod events for debugging
-  - apiGroups: [""]
-    resources: [events]
-    verbs: [create, patch]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: jellyfin-tailscale
-  namespace: qbitorrent
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: jellyfin-tailscale
-subjects:
-  - kind: ServiceAccount
-    name: jellyfin-tailscale
-    namespace: qbitorrent
