@@ -1,6 +1,8 @@
 # DNS-01 wildcard issuer: issuance only needs a TXT record, so the same
 # wildcard covers every routing tier (public DNS -> node tail IP, local DNS
 # override -> node LAN IP).
+# The cloudflare-api-token Secret lives ONLY in the cluster (out-of-band,
+# Zone:DNS:Edit for wlsh.dev) -- never in git.
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -17,3 +19,19 @@ spec:
             apiTokenSecretRef:
               name: cloudflare-api-token
               key: api-token
+---
+# Secret lands in this ns so the TLSStore (traefik) can consume it directly.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-wlsh-dev
+  namespace: traefik
+spec:
+  secretName: wildcard-wlsh-dev-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - wlsh.dev
+    - "*.wlsh.dev"
+  renewBefore: 720h
