@@ -1,7 +1,3 @@
-# tailscale runs as a separate hostNetwork deployment (jellyfin-tailscale.yaml)
-# rather than a sidecar: its WireGuard traffic needs the node's netns to punch
-# direct through the home router's NAT, but jellyfin itself must stay in pod
-# netns so 8096 is not exposed to the LAN.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
