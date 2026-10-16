@@ -88,10 +88,17 @@ spec:
             - --alias
             - qwen3-coder
 
-            # Gates /v1 and the built-in Web UI. The key comes from a Secret
-            # created OUT-OF-BAND, never in git: this repo deploys from GitHub
-            # via Flux and has no SOPS or sealed-secrets configured, so a
-            # committed key would sit in plaintext in history.
+            # Gates the API endpoints — /v1/*, /props, /metrics and /ui all
+            # return 401 without a key (measured). NOTE: it does NOT gate the
+            # Web UI's static HTML at "/", which still returns 200; the UI is
+            # just useless without the key since every call it makes 401s. Use
+            # --no-webui to remove it outright. /health stays open, which the
+            # probes below depend on.
+            #
+            # The key comes from a Secret created OUT-OF-BAND, never in git:
+            # this repo deploys from GitHub via Flux and has no SOPS or
+            # sealed-secrets configured, so a committed key would sit in
+            # plaintext in history.
             #
             #   kubectl create secret generic llama-api-key -n llm \
             #     --from-literal=API_KEY="$(openssl rand -hex 32)"
