@@ -8,7 +8,12 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 32Gi
+      # Holds the HF model cache. Sized for one UD-Q5_K_XL (~22Gi) plus
+      # headroom for a second model to A/B against.
+      # NOTE: the local-path provisioner does not support volume expansion
+      # (allowVolumeExpansion: false), so growing this requires deleting
+      # and recreating the PVC — Flux cannot patch it in place.
+      storage: 48Gi
 
 ---
 apiVersion: scheduling.k8s.io/v1
@@ -62,10 +67,10 @@ spec:
             # --------------------------------------------------
 
             - --hf-repo
-            - tensorblock/Qwen_Qwen3-Coder-30B-A3B-Instruct-GGUF
+            - unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF
 
             - --hf-file
-            - Qwen3-Coder-30B-A3B-Instruct-Q3_K_M.gguf
+            - Qwen3-Coder-30B-A3B-Instruct-UD-Q5_K_XL.gguf
 
             # --------------------------------------------------
             # HTTP API
@@ -92,20 +97,39 @@ spec:
             # --------------------------------------------------
 
             - --ctx-size
-            - "16384"
+            - "32768"
 
             - --parallel
             - "1"
 
             # --------------------------------------------------
+            # KV cache / attention
+            # --------------------------------------------------
+
+            # Quantized V-cache requires flash attention, so these are a
+            # set. q8_0 roughly halves KV RAM (~1.7Gi at 32k ctx for this
+            # model), which is what buys the extra context.
+            - --flash-attn
+            - "on"
+
+            - --cache-type-k
+            - "q8_0"
+
+            - --cache-type-v
+            - "q8_0"
+
+            # --------------------------------------------------
             # Batching
             # --------------------------------------------------
 
+            # Prefill is compute-bound and is the bottleneck on this node
+            # (~85 tok/s), so these are pushed toward the llama.cpp defaults
+            # (2048/512); the previous 512/256 was halving prefill batch depth.
             - --batch-size
-            - "512"
+            - "2048"
 
             - --ubatch-size
-            - "256"
+            - "512"
 
             - --cont-batching
 
@@ -122,8 +146,12 @@ spec:
 
           resources:
             requests:
+              # ~22Gi weights + ~2Gi KV + compute buffers. Request raised to
+              # reflect real usage so the scheduler accounts for it; the node
+              # has request headroom but its memory *limits* are ~94%
+              # committed, so the limit is deliberately left at 32Gi.
               cpu: "4"
-              memory: "18Gi"
+              memory: "24Gi"
 
             limits:
               cpu: "12"
