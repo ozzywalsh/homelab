@@ -82,6 +82,12 @@ spec:
             - --port
             - "8080"
 
+            # Stable API-facing model name, so clients (Aider, OpenWebUI, ...)
+            # can ask for "qwen3-coder" instead of the full HF repo id, which
+            # changes whenever the quant or source repo changes.
+            - --alias
+            - qwen3-coder
+
             # --------------------------------------------------
             # CPU
             # --------------------------------------------------
@@ -143,6 +149,24 @@ spec:
             # Persist llama.cpp's HF model cache.
             - name: LLAMA_CACHE
               value: /models/.cache
+
+            # Gates /v1 and the built-in Web UI (/v1/models is exempt so
+            # clients can still discover the model). The value lives in a
+            # Secret created OUT-OF-BAND, never in git: this repo deploys from
+            # GitHub via Flux and has no SOPS or sealed-secrets configured, so
+            # a committed key would sit in plaintext in history.
+            #
+            #   kubectl create secret generic llama-api-key -n llm \
+            #     --from-literal=API_KEY="$(openssl rand -hex 32)"
+            #
+            # Consequence of that choice: Flux cannot recreate this Secret on a
+            # rebuild, so a fresh cluster comes up with the pod Pending until
+            # it is made again. Worth adopting SOPS or sealed-secrets.
+            - name: LLAMA_ARG_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: llama-api-key
+                  key: API_KEY
 
           resources:
             requests:
