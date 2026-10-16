@@ -88,6 +88,20 @@ spec:
             - --alias
             - qwen3-coder
 
+            # Gates /v1 and the built-in Web UI. The key comes from a Secret
+            # created OUT-OF-BAND, never in git: this repo deploys from GitHub
+            # via Flux and has no SOPS or sealed-secrets configured, so a
+            # committed key would sit in plaintext in history.
+            #
+            #   kubectl create secret generic llama-api-key -n llm \
+            #     --from-literal=API_KEY="$(openssl rand -hex 32)"
+            #
+            # Consequence: Flux cannot recreate that Secret on a rebuild, so a
+            # fresh cluster comes up with the pod blocked until it is made
+            # again. Worth adopting SOPS or sealed-secrets.
+            - --api-key-file
+            - /etc/llama/keys/API_KEY
+
             # --------------------------------------------------
             # CPU
             # --------------------------------------------------
@@ -150,23 +164,12 @@ spec:
             - name: LLAMA_CACHE
               value: /models/.cache
 
-            # Gates /v1 and the built-in Web UI (/v1/models is exempt so
-            # clients can still discover the model). The value lives in a
-            # Secret created OUT-OF-BAND, never in git: this repo deploys from
-            # GitHub via Flux and has no SOPS or sealed-secrets configured, so
-            # a committed key would sit in plaintext in history.
-            #
-            #   kubectl create secret generic llama-api-key -n llm \
-            #     --from-literal=API_KEY="$(openssl rand -hex 32)"
-            #
-            # Consequence of that choice: Flux cannot recreate this Secret on a
-            # rebuild, so a fresh cluster comes up with the pod Pending until
-            # it is made again. Worth adopting SOPS or sealed-secrets.
-            - name: LLAMA_ARG_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: llama-api-key
-                  key: API_KEY
+            # NOTE: the API key is NOT set here. `--api-key` has no env binding
+            # in this build (unlike `--api-key-file`, which documents
+            # LLAMA_ARG_API_KEY_FILE), so an env var silently does nothing and
+            # the server comes up with auth off. It is passed as
+            # --api-key-file against a mounted Secret instead — see the volume
+            # below and the args above.
 
           resources:
             requests:
@@ -189,6 +192,10 @@ spec:
           volumeMounts:
             - name: models
               mountPath: /models
+
+            - name: api-key
+              mountPath: /etc/llama/keys
+              readOnly: true
 
           startupProbe:
             httpGet:
@@ -221,6 +228,12 @@ spec:
         - name: models
           persistentVolumeClaim:
             claimName: llama-models
+
+        # Secret key API_KEY mounts as a file of the same name, which is what
+        # --api-key-file reads.
+        - name: api-key
+          secret:
+            secretName: llama-api-key
 
 ---
 apiVersion: v1
