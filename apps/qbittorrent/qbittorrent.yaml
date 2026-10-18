@@ -56,7 +56,7 @@ spec:
           - containerPort: 31456
 
       - name: qbittorrent
-        image: lscr.io/linuxserver/qbittorrent:5.2.4@sha256:97333cc1ccf903e0bbcd8eb67e3332e4970e9c1ecabe145e499e9c0847ebcaed
+        image: lscr.io/linuxserver/qbittorrent:20.04.1@sha256:fc98c8af048936d0070dc5e5992feab08664f8a61a860d91be02f782f8721485
 
         env:
           - name: PUID
