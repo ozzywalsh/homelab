@@ -85,17 +85,18 @@ spec:
             claimName: adguard-work
 
 ---
-# DNS for external clients (laptop, later the router): the fixed
-# 192.168.1.53 address comes from the adguard-dns pool.
+# DNS for external clients (laptop, later the router): pinned to the fixed
+# 192.168.1.53 address, which the dedicated adguard-dns pool owns.
+# (loadBalancerIP is deprecated upstream but is MetalLB's supported way to
+# pin; the pool annotation is output-only and cannot request a pool.)
 apiVersion: v1
 kind: Service
 metadata:
   name: adguard
   namespace: adguard
-  annotations:
-    metallb.io/ip-allocated-from-pool: adguard-dns
 spec:
   type: LoadBalancer
+  loadBalancerIP: 192.168.1.53
   selector:
     app: adguard
   ports:
