@@ -1,0 +1,138 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: adguard-work
+  namespace: adguard
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+# One-time setup wizard runs at https://adguard.homelab (via Traefik) or
+# http://adguard:3000 (via the LB) -- keep its web-interface port at the
+# default 3000, it's what the Service and IngressRoute here point at. The
+# wizard writes the admin user into the config on the PVC, so nothing
+# sensitive needs to live in git.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: adguard
+  namespace: adguard
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: adguard
+  template:
+    metadata:
+      labels:
+        app: adguard
+    spec:
+      containers:
+        - name: adguard
+          image: adguard/adguardhome:v0.107.79@sha256:abadc6ec47f8ca385cb38f2abfeb11ca6a2b0277964967b1954c63e11b517f4f
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: dns-tcp
+              containerPort: 53
+              protocol: TCP
+            - name: dns-udp
+              containerPort: 53
+              protocol: UDP
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+
+          env:
+            - name: TZ
+              value: "Europe/Dublin"
+
+          volumeMounts:
+            - name: work
+              mountPath: /opt/adguardhome/work
+
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+
+      volumes:
+        - name: work
+          persistentVolumeClaim:
+            claimName: adguard-work
+
+---
+# DNS for external clients (laptop, later the router): the fixed
+# 192.168.1.53 address comes from the adguard-dns pool.
+apiVersion: v1
+kind: Service
+metadata:
+  name: adguard
+  namespace: adguard
+  annotations:
+    metallb.io/ip-allocated-from-pool: adguard-dns
+spec:
+  type: LoadBalancer
+  selector:
+    app: adguard
+  ports:
+    - name: dns-tcp
+      port: 53
+      targetPort: dns-tcp
+      protocol: TCP
+    - name: dns-udp
+      port: 53
+      targetPort: dns-udp
+      protocol: UDP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: adguard-web
+  namespace: adguard
+spec:
+  type: ClusterIP
+  selector:
+    app: adguard
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: adguard
+  namespace: adguard
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`adguard.homelab`)
+      kind: Rule
+      services:
+        - name: adguard-web
+          port: 80
