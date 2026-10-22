@@ -97,6 +97,9 @@ kind: IngressRoute
 metadata:
   name: seerr-tailnet
   namespace: qbitorrent
+  labels:
+    # Pairs with the labelSelector on apps/traefik/helm-traefik.yaml.
+    gateway: tailnet
 spec:
   # Tailnet tier: public DNS points seerr.wlsh.dev at the node's tailscale
   # IP; only hosts that can reach the mesh (friends' machine-shared node,

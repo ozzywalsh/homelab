@@ -4,7 +4,7 @@ metadata:
   name: traefik
   # traefik must run in the host netns (tailnet listeners must bind the node
   # host -- a MetalLB VIP is unreachable from the tailnet), which violates
-  # the default baseline PodSecurity. Same label set as hmlb's tailscale ns.
+  # the default baseline PodSecurity.
   labels:
     pod-security.kubernetes.io/audit: privileged
     pod-security.kubernetes.io/enforce: privileged

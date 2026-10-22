@@ -5,4 +5,5 @@ metadata:
 resources:
   - namespace.yaml
   - helm-traefik.yaml
+  - helm-traefik-lan.yaml
   - tlsstore-wildcard.yaml

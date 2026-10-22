@@ -98,17 +98,16 @@ spec:
       services:
         - name: jellyfin
           port: 8096
-    - match: Host(`jellyfin.wlsh.dev`)
-      kind: Rule
-      services:
-        - name: jellyfin
-          port: 8096
 ---
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
   name: jellyfin-tailnet
   namespace: qbitorrent
+  # gateway=tailnet is what keeps this route (and only routes like it) on the
+  # hostNetwork instance -- see apps/traefik/helm-traefik.yaml.
+  labels:
+    gateway: tailnet
 spec:
   # Tailnet tier: public DNS points jellyfin.wlsh.dev at the node's tailscale
   # IP, remote access rides WireGuard, fails closed off-mesh. tls w/o
