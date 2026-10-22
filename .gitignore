@@ -1,0 +1,16 @@
+.aider*
+
+# talos/tailscale cluster credentials -- never commit
+talosconfig
+kubeconfig
+talosconfig-*
+
+# scratch / throwaway files at repo root
+json
+test.yaml
+values.yaml
+jsonpath=*
+
+# private docs (security audit, ops notes) and tailnet ACL policy -- not for the public repo
+docs/
+*.hujson

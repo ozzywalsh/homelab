@@ -1,0 +1,279 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: llama-models
+  namespace: llm
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      # Holds the HF model cache. Sized for one UD-Q5_K_XL (~22Gi) plus
+      # headroom for a second model to A/B against.
+      # NOTE: the local-path provisioner does not support volume expansion
+      # (allowVolumeExpansion: false), so growing this requires deleting
+      # and recreating the PVC — Flux cannot patch it in place.
+      storage: 48Gi
+
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: low-priority-llm
+value: -10
+globalDefault: false
+description: LLM workloads should yield to important services
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama
+  namespace: llm
+spec:
+  replicas: 1
+
+  strategy:
+    type: Recreate
+
+  selector:
+    matchLabels:
+      app: llama
+
+  template:
+    metadata:
+      labels:
+        app: llama
+
+    spec:
+      priorityClassName: low-priority-llm
+
+      terminationGracePeriodSeconds: 120
+
+      containers:
+        - name: llama
+
+          image: ghcr.io/ggml-org/llama.cpp:server@sha256:f41d47eee678c02656eefc9ed8cce76cab584aa7032805eeef0e6639fcfda485
+
+          imagePullPolicy: IfNotPresent
+
+          command:
+            - /app/llama-server
+
+          args:
+
+            # --------------------------------------------------
+            # Model
+            # --------------------------------------------------
+
+            - --hf-repo
+            - unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF
+
+            - --hf-file
+            - Qwen3-Coder-30B-A3B-Instruct-UD-Q5_K_XL.gguf
+
+            # --------------------------------------------------
+            # HTTP API
+            # --------------------------------------------------
+
+            - --host
+            - 0.0.0.0
+
+            - --port
+            - "8080"
+
+            # Stable API-facing model name, so clients (Aider, OpenWebUI, ...)
+            # can ask for "qwen3-coder" instead of the full HF repo id, which
+            # changes whenever the quant or source repo changes.
+            - --alias
+            - qwen3-coder
+
+            # Gates the API endpoints — /v1/*, /props, /metrics and /ui all
+            # return 401 without a key (measured). NOTE: it does NOT gate the
+            # Web UI's static HTML at "/", which still returns 200; the UI is
+            # just useless without the key since every call it makes 401s. Use
+            # --no-webui to remove it outright. /health stays open, which the
+            # probes below depend on.
+            #
+            # The key comes from a Secret created OUT-OF-BAND, never in git:
+            # this repo deploys from GitHub via Flux and has no SOPS or
+            # sealed-secrets configured, so a committed key would sit in
+            # plaintext in history.
+            #
+            #   kubectl create secret generic llama-api-key -n llm \
+            #     --from-literal=API_KEY="$(openssl rand -hex 32)"
+            #
+            # Consequence: Flux cannot recreate that Secret on a rebuild, so a
+            # fresh cluster comes up with the pod blocked until it is made
+            # again. Worth adopting SOPS or sealed-secrets.
+            - --api-key-file
+            - /etc/llama/keys/API_KEY
+
+            # --------------------------------------------------
+            # CPU
+            # --------------------------------------------------
+
+            - --threads
+            - "12"
+
+            - --threads-batch
+            - "12"
+
+            # --------------------------------------------------
+            # Context / concurrency
+            # --------------------------------------------------
+
+            - --ctx-size
+            - "32768"
+
+            - --parallel
+            - "1"
+
+            # --------------------------------------------------
+            # KV cache / attention
+            # --------------------------------------------------
+
+            # Quantized V-cache requires flash attention, so these are a
+            # set. q8_0 roughly halves KV RAM (~1.7Gi at 32k ctx for this
+            # model), which is what buys the extra context.
+            - --flash-attn
+            - "on"
+
+            - --cache-type-k
+            - "q8_0"
+
+            - --cache-type-v
+            - "q8_0"
+
+            # --------------------------------------------------
+            # Batching
+            # --------------------------------------------------
+
+            # Prefill is compute-bound and is the bottleneck on this node
+            # (~85 tok/s), so these are pushed toward the llama.cpp defaults
+            # (2048/512); the previous 512/256 was halving prefill batch depth.
+            - --batch-size
+            - "2048"
+
+            - --ubatch-size
+            - "512"
+
+            - --cont-batching
+
+            # --------------------------------------------------
+            # Monitoring
+            # --------------------------------------------------
+
+            - --metrics
+
+          env:
+            # Persist llama.cpp's HF model cache.
+            - name: LLAMA_CACHE
+              value: /models/.cache
+
+            # NOTE: the API key is NOT set here. `--api-key` has no env binding
+            # in this build (unlike `--api-key-file`, which documents
+            # LLAMA_ARG_API_KEY_FILE), so an env var silently does nothing and
+            # the server comes up with auth off. It is passed as
+            # --api-key-file against a mounted Secret instead — see the volume
+            # below and the args above.
+
+          resources:
+            requests:
+              # ~22Gi weights + ~2Gi KV + compute buffers. Request raised to
+              # reflect real usage so the scheduler accounts for it; the node
+              # has request headroom but its memory *limits* are ~94%
+              # committed, so the limit is deliberately left at 32Gi.
+              cpu: "4"
+              memory: "24Gi"
+
+            limits:
+              cpu: "12"
+              memory: "32Gi"
+
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+
+          volumeMounts:
+            - name: models
+              mountPath: /models
+
+            - name: api-key
+              mountPath: /etc/llama/keys
+              readOnly: true
+
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 60
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: llama-models
+
+        # Secret key API_KEY mounts as a file of the same name, which is what
+        # --api-key-file reads.
+        - name: api-key
+          secret:
+            secretName: llama-api-key
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llama
+  namespace: llm
+
+spec:
+  type: ClusterIP
+
+  selector:
+    app: llama
+
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: llama
+  namespace: llm
+spec:
+  entryPoints:
+    - web 
+  routes:
+    - match: Host(`llama.homelab`)
+      kind: Rule
+      services:
+        - name: llama
+          port: 8080
+---
+

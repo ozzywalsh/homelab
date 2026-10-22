@@ -1,0 +1,119 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qbittorrent
+  namespace: qbitorrent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qbitorrent
+  template:
+    metadata:
+      labels:
+        app: qbitorrent
+    spec:
+      containers:
+
+      - name: gluetun
+        image: ghcr.io/qdm12/gluetun:v3.41.3@sha256:fa19cc76b2af13d57a8d3dc3066f2ada061b1c761b8aecf989b3877c0486e027
+        securityContext:
+          capabilities:
+            add:
+              - NET_ADMIN
+        env:
+          - name: VPN_SERVICE_PROVIDER
+            value: protonvpn
+
+          - name: VPN_TYPE
+            value: wireguard
+
+          # Store these in a Secret in production
+          - name: WIREGUARD_PRIVATE_KEY
+            valueFrom:
+              secretKeyRef:
+                name: proton-wireguard
+                key: private-key
+
+          - name: WIREGUARD_ADDRESSES
+            value: "10.2.0.2/32"
+
+          # Optional
+          - name: TZ
+            value: Europe/Dublin
+
+          # Enable Proton port forwarding if supported
+          - name: VPN_PORT_FORWARDING
+            value: "on"
+
+        volumeMounts:
+          - name: tun
+            mountPath: /dev/net/tun
+
+        ports:
+          - containerPort: 8080
+          - containerPort: 31456
+
+      - name: qbittorrent
+        image: lscr.io/linuxserver/qbittorrent:20.04.1@sha256:fc98c8af048936d0070dc5e5992feab08664f8a61a860d91be02f782f8721485
+
+        env:
+          - name: PUID
+            value: "1000"
+          - name: PGID
+            value: "1000"
+          - name: TZ
+            value: Europe/Dublin
+          - name: WEBUI_PORT
+            value: "8080"
+
+        volumeMounts:
+          - name: config
+            mountPath: /config
+          - name: data
+            mountPath: /data
+
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: qbittorrent-config-pvc
+
+        - name: data
+          persistentVolumeClaim:
+            claimName: media
+
+        - name: tun
+          hostPath:
+            path: /dev/net/tun
+            type: CharDevice
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent-web
+  namespace: qbitorrent
+spec:
+  type: ClusterIP
+  selector:
+    app: qbitorrent
+  ports:
+    - name: web-tcp
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: qbittorrent
+  namespace: qbitorrent
+spec:
+  entryPoints:
+    - web 
+  routes:
+    - match: Host(`qbittorrent.local`)
+      kind: Rule
+      services:
+        - name: qbittorrent-web
+          port: 8080

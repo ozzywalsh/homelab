@@ -1,0 +1,123 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: jellyfin
+  name: jellyfin
+  namespace: qbitorrent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jellyfin
+  template:
+    metadata:
+      labels:
+        app: jellyfin
+    spec:
+      volumes:
+      - name: jellyfin-config
+        persistentVolumeClaim:
+          claimName: jellyfin-config-pvc
+      - name: jellyfin-data
+        persistentVolumeClaim:
+          claimName: media
+      - name: jellyfin-backups
+        persistentVolumeClaim:
+          claimName: jellyfin-backups
+      containers:
+      - env:
+        - name: TZ
+          value: Europe/Dublin
+        image: jellyfin/jellyfin:12.2@sha256:357724bf0ae27a672c7cbaa899db2d9abeb13dbd8657ccce750258a4c059d037
+        name: jellyfin
+        ports:
+        - containerPort: 8096
+          name: http-tcp
+          protocol: TCP
+        - containerPort: 8920
+          name: https-tcp
+          protocol: TCP
+        - containerPort: 1900
+          name: dlna-udp
+          protocol: UDP
+        - containerPort: 7359
+          name: discovery-udp
+          protocol: UDP
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "1Gi"
+          limits:
+            cpu: "4000m"
+            memory: "16Gi"
+            devic.es/amd-render: 1
+        securityContext:
+          privileged: false
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+        volumeMounts:
+        - mountPath: /config
+          name: jellyfin-config
+        - mountPath: /config/data/backups
+          name: jellyfin-backups
+        - mountPath: /data
+          name: jellyfin-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jellyfin
+  namespace: qbitorrent
+spec:
+  selector:
+    app: jellyfin
+  ports:
+    - protocol: TCP
+      port: 8096
+      targetPort: 8096
+  type: ClusterIP
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: jellyfin
+  namespace: qbitorrent
+# NB: spec.tls applies to ALL entryPoints of one IngressRoute, and a
+# TLS-marked router on a plaintext entrypoint silently stops matching
+# (symptom: 404 on web). So LAN (web) and tailnet (websecure+tls) are two
+# separate IngressRoutes.
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`jellyfin.homelab`)
+      kind: Rule
+      services:
+        - name: jellyfin
+          port: 8096
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: jellyfin-tailnet
+  namespace: qbitorrent
+  # gateway=tailnet is what keeps this route (and only routes like it) on the
+  # hostNetwork instance -- see apps/traefik/helm-traefik.yaml.
+  labels:
+    gateway: tailnet
+spec:
+  # Tailnet tier: public DNS points jellyfin.wlsh.dev at the node's tailscale
+  # IP, remote access rides WireGuard, fails closed off-mesh. tls w/o
+  # secretRef -> TLSStore "default" (the *.wlsh.dev wildcard).
+  entryPoints:
+    - websecure
+  tls: {}
+  routes:
+    - match: Host(`jellyfin.wlsh.dev`)
+      kind: Rule
+      services:
+        - name: jellyfin
+          port: 8096

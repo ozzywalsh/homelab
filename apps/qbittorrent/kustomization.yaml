@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - nzbget.yaml
+  - qbittorrent.yaml
+  - jellyfin.yaml
+  - sonarr.yaml
+  - radarr.yaml
+  - prowlarr.yaml
+  - bazarr.yaml
+  - seerr.yaml
+  - pvc.yaml

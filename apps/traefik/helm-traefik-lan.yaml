@@ -1,0 +1,67 @@
+# Cluster-network peer of the hostNetwork `traefik` release
+# (helm-traefik.yaml). This instance owns the MetalLB VIP and serves every
+# route the tailnet gateway doesn't -- the pair is partitioned by label:
+# providers.*.labelSelector gateway=tailnet vs gateway!=tailnet. Hitting the
+# MetalLB VIP with Host jellyfin.wlsh.dev 404s, and hitting the tailscale IP
+# with Host <anything>.homelab 404s; only a route's owning instance can serve
+# it.
+# Chart source is the shared `traefik` HelmRepository from helm-traefik.yaml
+# (both releases live in the same namespace).
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: traefik-lan
+  namespace: traefik
+spec:
+  interval: 1h0m0s
+  chart:
+    spec:
+      chart: traefik
+      version: "41.7.1"
+      sourceRef:
+        kind: HelmRepository
+        name: traefik
+        namespace: traefik
+  install:
+    createNamespace: true
+  values:
+    api:
+      dashboard: true
+    deployment:
+      kind: Deployment
+    # Plain cluster networking: no hostNetwork, default user, no special caps.
+    ingressRoute:
+      dashboard:
+        # Same rationale as the tailnet release: unauthenticated /api/rawdata.
+        enabled: false
+    providers:
+      kubernetesCRD:
+        # Everything except the tailnet-labelled routes. (apimachinery
+        # label-selector syntax, so the != set-requirement is supported; if
+        # the instance ever failed to parse it, the fallback behaviour is
+        # over-matching -- LAN-only reachability, never a tailnet leak.)
+        labelSelector: gateway!=tailnet
+      kubernetesIngress:
+        labelSelector: gateway!=tailnet
+    ports:
+      web:
+        port: 8000
+        exposedPort: 80
+        expose:
+          default: true
+        protocol: TCP
+      websecure:
+        # Nothing TLS-routed today (.homelab names are plaintext web), but the
+        # entrypoint stays so future TLS routes don't need a value change
+        # (8443 is fine here: no host netns; the Service maps 443 -> 8443).
+        port: 8443
+        exposedPort: 443
+        expose:
+          default: true
+        protocol: TCP
+    service:
+      annotations:
+        metallb.io/loadBalancerIPs: "192.168.1.200"
+      spec:
+        type: LoadBalancer
+        externalTrafficPolicy: Local

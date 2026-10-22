@@ -1,0 +1,45 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "kubernetes": {
+    "managerFilePatterns": [
+      "/apps/.+\\.yaml$/"
+    ]
+  },
+  "flux": {
+    "managerFilePatterns": [
+      "/apps/.+\\.yaml$/"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "no digest pinning: tag-only deps stay as tags; llama.cpp's moving :server tag is tracked by its already-pinned digest (manual review)",
+      "matchManagers": ["kubernetes", "flux"],
+      "pinDigests": false
+    },
+    {
+      "description": "Apps: automerge minor/patch/digest updates (exceptions handled below)",
+      "matchManagers": ["kubernetes", "flux"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "automerge": true,
+      "matchPackageNames": [
+        "!jellyfin/jellyfin",
+        "!ghcr.io/ggml-org/llama.cpp"
+      ]
+    },
+    {
+      "description": "Jellyfin: never automerge (media library + transcode stack, manual review)",
+      "matchPackageNames": ["jellyfin/jellyfin"],
+      "automerge": false,
+      "labels": ["manual-review"]
+    },
+    {
+      "description": "llama.cpp: moving :server tag tracked via digest, manual review (GPU + model server)",
+      "matchPackageNames": ["ghcr.io/ggml-org/llama.cpp"],
+      "automerge": false,
+      "labels": ["manual-review"]
+    }
+  ]
+}

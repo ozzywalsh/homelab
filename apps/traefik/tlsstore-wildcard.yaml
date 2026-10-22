@@ -1,0 +1,15 @@
+# Make the DNS-01 wildcard the default certificate for the websecure
+# entrypoint. Hostnames routed on 443 with `tls: {}` and no secretRef (e.g.
+# jellyfin.wlsh.dev from the tailnet) are served with this cert.
+apiVersion: traefik.io/v1alpha1
+kind: TLSStore
+metadata:
+  name: default
+  namespace: traefik
+  # The tailnet gateway's CRD labelSelector must see this store, or 443 falls
+  # back to traefik's self-signed default cert for tailnet clients.
+  labels:
+    gateway: tailnet
+spec:
+  defaultCertificate:
+    secretName: wildcard-wlsh-dev-tls

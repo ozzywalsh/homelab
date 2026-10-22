@@ -1,0 +1,74 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nzbget
+  namespace: qbitorrent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nzbget
+  template:
+    metadata:
+      labels:
+        app: nzbget
+    spec:
+      containers:
+      - name: nzbget
+        image: lscr.io/linuxserver/nzbget:version-v26.2@sha256:1dca6a4407e08313919d2780bf2a6bc17e21b947a6e8e34624b9e115795fcf8c
+        env:
+          - name: PUID
+            value: "1000"
+          - name: PGID
+            value: "1000"
+          - name: TZ
+            value: Europe/Dublin
+        volumeMounts:
+          - name: config
+            mountPath: /config
+          - name: data
+            mountPath: /data
+          - mountPath: /config/persistence/inter
+            name: inter-downloads-and-history
+            subPath: inter
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: nzbget-config-pvc
+        - name: data
+          persistentVolumeClaim:
+            claimName: media
+        - name: inter-downloads-and-history
+          persistentVolumeClaim:
+            claimName: inter-downloads-and-history
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nzbget-web
+  namespace: qbitorrent
+spec:
+  type: ClusterIP
+  selector:
+    app: nzbget
+  ports:
+    - name: web-tcp
+      protocol: TCP
+      port: 6789
+      targetPort: 6789
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: nzbget
+  namespace: qbitorrent
+spec:
+  entryPoints:
+    - web 
+  routes:
+    - match: Host(`nzbget.homelab`)
+      kind: Rule
+      services:
+        - name: nzbget-web
+          port: 6789

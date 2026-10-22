@@ -1,0 +1,238 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jellyfin-config-pvc
+  namespace: qbitorrent
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 8Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jellyfin-tailscale-state
+  namespace: qbitorrent
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qbittorrent-config-pvc
+  namespace: qbitorrent
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: radarr-config
+  namespace: qbitorrent
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sonarr-config
+  namespace: qbitorrent
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prowlarr-config
+  namespace: qbitorrent
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bazarr-config
+  namespace: qbitorrent
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: seerr-config
+  namespace: qbitorrent
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nzbget-config-pvc
+  namespace: qbitorrent
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: media-pv
+  namespace: qbitorrent
+spec:
+  capacity:
+    storage: 500Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: "media"
+  csi:
+    driver: nfs.csi.k8s.io
+    volumeHandle: media
+    volumeAttributes:
+      server: 192.168.1.62
+      share: /tank/media
+  mountOptions:
+    - hard
+    - nfsvers=3
+    - nolock
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: backups-pv
+  namespace: qbitorrent
+spec:
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: "backups"
+  csi:
+    driver: nfs.csi.k8s.io
+    volumeHandle: backups
+    volumeAttributes:
+      server: 192.168.1.62
+      share: /tank/backups
+  mountOptions:
+    - hard
+    - nfsvers=3
+    - nolock
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: new-media-pv
+  namespace: qbitorrent
+spec:
+  capacity:
+    storage: 500Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: "media"
+  csi:
+    driver: nfs.csi.k8s.io
+    volumeHandle: wd_elements
+    volumeAttributes:
+      server: 192.168.1.62
+      share: /mnt/wd_elements/media
+  mountOptions:
+    - hard
+    - nfsvers=3
+    - nolock
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: new-media
+  namespace: qbitorrent
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: "media"
+  resources:
+    requests:
+      storage: 500Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: media
+  namespace: qbitorrent
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: "media"
+  resources:
+    requests:
+      storage: 500Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jellyfin-backups
+  namespace: qbitorrent
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: "backups"
+  resources:
+    requests:
+      storage: 100Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: inter-downloads-and-history
+  namespace: qbitorrent
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 250Gi
