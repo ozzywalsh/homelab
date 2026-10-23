@@ -110,9 +110,9 @@ metadata:
   namespace: qbitorrent
 spec:
   entryPoints:
-    - web 
+    - web
   routes:
-    - match: Host(`qbittorrent.local`)
+    - match: Host(`qbittorrent.homelab`)
       kind: Rule
       services:
         - name: qbittorrent-web
