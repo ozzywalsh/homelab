@@ -106,6 +106,10 @@ data:
       static_configs:
       - targets:
         - 192.168.1.62:9100
+    - job_name: otelcol
+      static_configs:
+      - targets:
+        - "http://prometheus.observability.svc.cluster.local:9090"
 
 
   alert_rules.yml: |
