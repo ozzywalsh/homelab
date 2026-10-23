@@ -109,7 +109,7 @@ data:
     - job_name: otelcol
       static_configs:
       - targets:
-        - prometheus.observability.svc.cluster.local:8889
+        - obi-collector-collector.obi-system.svc.cluster.local:8889
 
 
   alert_rules.yml: |
