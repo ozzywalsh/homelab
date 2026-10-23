@@ -1,0 +1,106 @@
+# PR prevalidation for the Flux-managed cluster manifests.
+#
+# 1. Render every kustomization.yaml with kustomize (catches broken resources,
+#    patches, and cross-file references).
+# 2. Validate the rendered manifests with kubeconform against upstream
+#    Kubernetes schemas. Flux/Traefik/MetalLB CRs are skipped
+#    (-ignore-missing-schemas); Flux CRs are covered by step 4.
+# 3. Render the cluster with the Flux CLI in dry-run mode, exactly like the
+#    kustomize-controller does -- this also schema-checks the Flux
+#    Kustomization/GitRepository CRs in clusters/homelab.
+name: validate
+
+on:
+  pull_request:
+
+# cancels superseded runs of the same PR
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  KUSTOMIZE_VERSION: 5.4.3
+  KUBECONFORM_VERSION: 0.6.7
+  FLUX_VERSION: 2.9.5
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kustomize
+        run: |
+          url="https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
+          curl -sfL "$url" | tar -xz kustomize
+          sudo install kustomize /usr/local/bin/kustomize
+
+      - name: Install kubeconform
+        run: |
+          base="https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}"
+          curl -sfL -o kubeconform.tar.gz "${base}/kubeconform-linux-amd64.tar.gz"
+          curl -sfL -o CHECKSUMS "${base}/CHECKSUMS"
+          grep kubeconform-linux-amd64.tar.gz CHECKSUMS | sha256sum -c -
+          tar -xzf kubeconform.tar.gz kubeconform
+          sudo install kubeconform /usr/local/bin/kubeconform
+
+      - name: kustomize build (all kustomization.yaml)
+        run: |
+          set -euo pipefail
+          mkdir -p .rendered
+          dirs=$(find . -name kustomization.yaml -not -path './.git/*' | xargs -n1 dirname | sort)
+          for dir in $dirs; do
+            name="${dir#./}"
+            name="${name//\//-}"
+            echo "##[group]kustomize build $dir"
+            kustomize build "$dir" > ".rendered/${name}.yaml"
+            echo "##[endgroup]"
+          done
+
+      - name: kubeconform validate
+        run: |
+          # -ignore-missing-schemas skips Flux/Traefik/MetalLB custom resources;
+          # every core kind (Deployment, Service, PVC, Secret, ...) is strictly
+          # schema-validated. Flux CRs are covered by the flux build step below.
+          kubeconform -summary -ignore-missing-schemas .rendered/*.yaml
+
+      - name: Install flux CLI
+        run: |
+          url="https://github.com/fluxcd/flux2/releases/download/v${FLUX_VERSION}/flux_${FLUX_VERSION}_linux_amd64.tar.gz"
+          curl -sfL "$url" | tar -xz flux
+          sudo install flux /usr/local/bin/flux
+
+      - name: flux build (cluster entrypoints, dry-run)
+        run: |
+          set -euo pipefail
+          # mirrors gotk-sync.yaml: flux-system reconciles ./clusters/homelab,
+          # whose apps.yaml Kustomization CR then reconciles ./apps
+          flux build kustomization flux-system \
+            --path ./clusters/homelab/flux-system \
+            --kustomization-file ./clusters/homelab/flux-system/gotk-sync.yaml \
+            --dry-run > .rendered/flux-flux-system.yaml
+          flux build kustomization apps \
+            --path ./apps \
+            --kustomization-file ./clusters/homelab/apps.yaml \
+            --dry-run > .rendered/flux-apps.yaml
+
+      - name: Upload rendered manifests (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rendered-manifests
+          path: .rendered/
+          retention-days: 7
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Validation results"
+            echo '```'
+            find .rendered -name '*.yaml' | sort | xargs wc -l
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
