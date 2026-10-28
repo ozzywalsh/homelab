@@ -1,0 +1,1083 @@
+{
+  "title": "OBI self-observability — agent, eBPF & pipeline health",
+  "uid": "obi-self-observability",
+  "tags": ["obi", "ebpf", "observability", "self"],
+  "schemaVersion": 42,
+  "version": 1,
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "1m",
+  "timezone": "browser",
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "templating": {
+    "list": [
+      {
+        "name": "DS_PROMETHEUS",
+        "label": "Datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "pluginId": "prometheus",
+        "refresh": 1,
+        "hide": 2,
+        "current": {}
+      },
+      {
+        "name": "obi_namespaces",
+        "label": "Instrumented namespaces (discovery scope)",
+        "description": "Namespaces listed under receivers.obi.discovery.instrument. Used for the coverage/gap panels.",
+        "type": "textbox",
+        "query": "qbitorrent|obi-demo",
+        "current": { "selected": true, "text": "qbitorrent|obi-demo", "value": "qbitorrent|obi-demo" },
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Agent & collector health (otelcol_*)",
+      "description": "The DaemonSet runs OBI in-process inside obi-collector (otelcol-contrib). This row is scraped from the collector self-telemetry endpoint (prometheus job: otelcol-self).",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "collapsed": false
+    },
+    {
+      "type": "stat",
+      "title": "Collector uptime",
+      "description": "Time since obi-collector process start. Restart resets OBI eBPF instrumentation and discovery — pods may stay uninstrumented after a restart until OBI re-discovers them.",
+      "id": 1,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 0,
+          "colorMode": "value",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "otelcol_process_uptime_seconds_total{job=~\"otelcol-self|otelcol.*\"}",
+          "legendFormat": "uptime",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Collector restarts",
+      "description": "Restarts shown in the pod header mean every reload of the config unloads the eBPF probes — check whether instrumented pods recovered (see the coverage row).",
+      "id": 2,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "colorMode": "background",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 3 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["max"], "fields": "", "values": false },
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "max by (pod) (increase(kube_pod_container_status_restarts_total{namespace=\"obi-system\", pod=~\"obi-collector.*\"}[$__range]))",
+          "legendFormat": "{{pod}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Collector version",
+      "description": "otelcol-contrib version + OBI scope. Update the pinned image hash in obi.yaml when this drifts.",
+      "id": 3,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "colorMode": "none",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "textMode": "name",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "max(target_info{job=~\"otelcol-self|otelcol.*\"}) by (service_name, service_version)",
+          "legendFormat": "{{service_name}} {{service_version}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "OBI build",
+      "description": "OBI's own build info (internal metrics), reported as otel resource. Empty until internal_metrics is enabled.",
+      "id": 4,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "colorMode": "none",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "textMode": "name",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "max(obi_internal_build_info) by (version, os, arch)",
+          "legendFormat": "OBI {{version}} {{os}}/{{arch}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Collector CPU cores",
+      "description": "rate of otelcol_process_cpu_seconds_total. hostPID + eBPF sampling costs CPU; sustained >0.5 cores on the homelab node deserves a look.",
+      "id": 5,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 5 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.5 },
+              { "color": "red", "value": 1 }
+            ]
+          },
+          "custom": { "fillOpacity": 10, "lineWidth": 1, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true, "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "rate(otelcol_process_cpu_seconds_total{job=~\"otelcol-self|otelcol.*\"}[10m])",
+          "legendFormat": "cpu cores",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Collector memory",
+      "description": "RSS of the collector process (which includes the OBI agent) against the Go heap and total system allocations.",
+      "id": 6,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 5 },
+      "fieldConfig": {
+        "defaults": { "unit": "bytes", "custom": { "fillOpacity": 10, "lineWidth": 1, "showPoints": "never" } },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true, "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "otelcol_process_memory_rss_bytes{job=~\"otelcol-self|otelcol.*\"}",
+          "legendFormat": "RSS",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "otelcol_process_runtime_heap_alloc_bytes{job=~\"otelcol-self|otelcol.*\"}",
+          "legendFormat": "Go heap",
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "rate(otelcol_process_runtime_total_alloc_bytes_total{job=~\"otelcol-self|otelcol.*\"}[10m])",
+          "legendFormat": "alloc/s",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Metric points exported by collector",
+      "description": "Points per second out of each collector exporter (prometheus debug). This is the app-metrics pipeline volume OBI is pushing.",
+      "id": 7,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 5 },
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10, "lineWidth": 1, "showPoints": "never" } },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true, "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum by (exporter) (rate(otelcol_exporter_sent_metric_points_total{job=~\"otelcol-self|otelcol.*\"}[5m]))",
+          "legendFormat": "{{exporter}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Instrumentation coverage — what is instrumented, what is not",
+      "description": "OBI watches processes in the discovery scope namespaces. Gaps: pods that started after OBI (known PID-to-container lookup failure — restart OBI), non-supported runtimes, and processes whose probe attachments failed (see 'Instrumentation errors').",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 12 },
+      "id": 101,
+      "collapsed": false
+    },
+    {
+      "type": "stat",
+      "title": "Instrumented processes",
+      "description": "Unique executables currently carrying eBPF probes (gauge from obi instrumented_processes).",
+      "id": 8,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 13 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "colorMode": "value",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum(obi_instrumented_processes) or vector(0)",
+          "legendFormat": "processes",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Instrumented apps (15m)",
+      "description": "Distinct instrumented services that reported HTTP RED metrics in the last 15 minutes.",
+      "id": 9,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 13 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "colorMode": "value",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "count(rate(http_server_request_duration_seconds_count[15m]) > 0)",
+          "legendFormat": "jobs",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Pods in scope",
+      "description": "Pods in the discovery-scope namespaces, from kube-state-metrics.",
+      "id": 10,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 13 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "colorMode": "value",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "count(kube_pod_info{namespace=~\"$obi_namespaces\"})",
+          "legendFormat": "pods",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Reporting pods",
+      "description": "Pods in scope that reported app metrics to Prometheus in the last 10 minutes (pods started after OBI may not appear until OBI is restarted).",
+      "id": 11,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 13 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "colorMode": "background",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "textMode": "value",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "count(count by (namespace, pod) (label_replace(label_replace(sum by (exported_instance) (rate(http_server_request_duration_seconds_count[10m])), \"namespace\", \"$1\", \"exported_instance\", \"^([^.]*)\\\\..*\"), \"pod\", \"$1\", \"exported_instance\", \"^[^.]*\\\\.([^.]*\\\\.)[^.]*$\")))",
+          "legendFormat": "pods reporting",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Avoided services",
+      "description": "Services OBI declined to instrument (metrics/traces), e.g. already auto-instrumented by an SDK or in the exclusion list.",
+      "id": 12,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 13 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "colorMode": "none",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "options": {
+        "textMode": "value_and_name",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "max by (service_name, namespace, telemetry_type) (obi_avoided_services)",
+          "legendFormat": "{{service_name}} ({{telemetry_type}})",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Uninstrumented pods in scope",
+      "description": "Unique pods in the discovery scope minus the pods that reported app metrics in the last 10 minutes. Zero means full coverage.",
+      "id": 13,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 13 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "colorMode": "background",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 3 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "textMode": "value",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "count(\n  kube_pod_info{namespace=~\"$obi_namespaces\"}\n  unless on (namespace, pod)\n  (label_replace(label_replace(sum by (exported_instance) (rate(http_server_request_duration_seconds_count[10m])), \"namespace\", \"$1\", \"exported_instance\", \"^([^.]*)\\\\..*\"), \"pod\", \"$1\", \"exported_instance\", \"^[^.]*\\\\.([^.]*\\\\.)[^.]*$\"))\n)",
+          "legendFormat": "pods",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Uninstrumented pods — candidates for the known restart-gaps issue",
+      "description": "Pods in the discovery scope that did NOT report a single request metric in the last 10 minutes. Excludes non-serving pods that have never sent traffic (OBI only instruments on traffic/OBI discovery rules).",
+      "id": 14,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 17 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false }
+        },
+        "overrides": []
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "show": true, "reducer": ["sum"], "countRows": true, "fields": "" },
+        "showHeader": true,
+        "showViewControls": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "kube_pod_info{namespace=~\"$obi_namespaces\",pod!=\"\"}\n  unless on (namespace, pod)\n  (label_replace(label_replace(sum by (exported_instance) (rate(http_server_request_duration_seconds_count[10m])), \"namespace\", \"$1\", \"exported_instance\", \"^([^.]*)\\\\..*\"), \"pod\", \"$1\", \"exported_instance\", \"^[^.]*\\\\.([^.]*\\\\.)[^.]*$\"))",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Instrumented processes detail",
+      "description": "Processes currently carrying eBPF probes, with PID counts and any instrumentation errors per executable.",
+      "id": 15,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 17 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false }
+        },
+        "overrides": []
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "show": false, "reducer": ["sum"], "countRows": false, "fields": "" },
+        "showHeader": true,
+        "showViewControls": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "max by (process_executable_name) (obi_instrumented_processes)",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "topk(10, max by (process_executable_name, error_type) (rate(obi_instrumentation_errors_total[1h])))",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "eBPF engine health (obi_* internals)",
+      "description": "Probes, ring buffers, BPF map fill levels and the trace-processing queue pressure measured inside OBI. Requires internal_metrics exporter=otel in the obi receiver.",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+      "id": 102,
+      "collapsed": false
+    },
+    {
+      "type": "stat",
+      "title": "Ringbuf failure ratio",
+      "description": "Failed ringbuf writes / total writes. Anything above 1% means the kernel→user buffer is being left behind and events are lost.",
+      "id": 16,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 27 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 3,
+          "colorMode": "background",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.01 },
+              { "color": "red", "value": 0.05 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "textMode": "value",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum by () (rate(obi_bpf_ringbuf_write_failures_total[5m])) / sum by () (rate(obi_bpf_ringbuf_writes_total[5m]))",
+          "legendFormat": "failure ratio",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Max queue fill",
+      "description": "Capacity ratio of OBI's internal subscriber queues. Near 1.0 → metric points are being dropped before export.",
+      "id": 17,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 27 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 3,
+          "colorMode": "background",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.8 },
+              { "color": "red", "value": 0.95 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "textMode": "value_and_name",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["max"], "fields": "/^Max queue fill$/", "values": false },
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "max by (subscriber) (obi_queue_capacity_ratio)",
+          "legendFormat": "{{subscriber}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Instrumentation errors / s",
+      "description": "Probe attach failures and inspection errors per executable (e.g. symbol_not_found, attaching_uprobe).",
+      "id": 18,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 27 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "decimals": 3,
+          "colorMode": "background",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.001 },
+              { "color": "red", "value": 0.01 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "textMode": "value",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum(rate(obi_instrumentation_errors_total[5m]))",
+          "legendFormat": "errors/s",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "K8s informers forward lag (p95)",
+      "description": "How far behind the shared informer cache is when events are forwarded into the pipeline (obi_kube_cache_forward_lag).",
+      "id": 19,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 27 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2,
+          "colorMode": "background",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 2 },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "textMode": "value",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(obi_kube_cache_forward_lag_seconds_bucket[10m])))",
+          "legendFormat": "p95 lag",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Ringbuf writes vs failures",
+      "description": "Kernel ring buffer event writes (green) and write failures (red) per buffer, stacked.",
+      "id": 20,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": { "fillOpacity": 60, "lineWidth": 0, "showPoints": "never", "stacking": { "mode": "normal", "group": "A" } }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "/failures/" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true, "calcs": ["mean"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum by (ringbuf) (rate(obi_bpf_ringbuf_writes_total[5m]))",
+          "legendFormat": "{{ringbuf}} writes",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum by (ringbuf) (rate(obi_bpf_ringbuf_write_failures_total[5m]))",
+          "legendFormat": "{{ringbuf}} failures",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "eBPF probe latency percentiles",
+      "description": "Histogram p50/p95 of probe execution latency inside the kernel, by probe type (tracepoint/sockfilter/kprobe/uprobe...).",
+      "id": 21,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 32 },
+      "fieldConfig": {
+        "defaults": { "unit": "s", "custom": { "fillOpacity": 10, "lineWidth": 1, "showPoints": "never" } },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true, "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(obi_bpf_probe_latency_seconds_bucket[10m])))",
+          "legendFormat": "p50",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(obi_bpf_probe_latency_seconds_bucket[10m])))",
+          "legendFormat": "p95",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "BPF maps fill level",
+      "description": "Active entries vs max entries per BPF map. Maps trending toward their max lose new entries (traces/metrics for recent connections get dropped).",
+      "id": 22,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 32 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 3,
+          "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "fill" },
+            "properties": [
+              { "id": "unit", "value": "percentunit" },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 0.7 },
+                    { "color": "red", "value": 0.9 }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "show": false, "reducer": ["sum"], "countRows": false, "fields": "" },
+        "showHeader": true,
+        "showViewControls": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "100 * sum by (map_name, map_type) (obi_bpf_map_entries) / sum by (map_name, map_type) (obi_bpf_map_max_entries)",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Tracer flush batch sizes",
+      "description": "Histogram of trace-batch lengths flushed from the eBPF tracer. The mean is the number of request spans entering OBI's pipeline per flush.",
+      "id": 23,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "fillOpacity": 10, "lineWidth": 1, "showPoints": "never" } },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true, "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum(obi_bpf_tracer_flushes) by ()",
+          "legendFormat": "flushes (cumulative)",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum(increase(obi_bpf_tracer_flushes[5m]))",
+          "legendFormat": "increase (5m)",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Instrumentation errors by process & type",
+      "description": "Detail from obi_instrumentation_errors_total: which process failed in which way (inspection_failed, symbol_not_found, attaching_uprobe, attaching_sock_filter...).",
+      "id": 24,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false }
+        },
+        "overrides": []
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "show": false, "reducer": ["sum"], "countRows": false, "fields": "" },
+        "showHeader": true,
+        "showViewControls": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum by (process_executable_name, error_type) (obi_instrumentation_errors_total)",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Export pipeline — OBI → collector (otelcol)",
+      "description": "OBI hands its data to the in-process collector; these are the export-side counters plus processing errors inside OBI.",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 48 },
+      "id": 103,
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "OBI metric exports into the collector",
+      "description": "Sum of metric-point batches OBI submitted per second (average batch size) — the raw app-metric throughput entering the pipeline.",
+      "id": 25,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 49 },
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10, "lineWidth": 1, "showPoints": "never" } },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true, "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum(rate(obi_otel_metric_exports_total[5m]))",
+          "legendFormat": "metric points/s",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Export errors inside OBI",
+      "description": "Metric / trace export errors OBI recorded while pushing its data downstream. Should stay flat at zero.",
+      "id": 26,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 49 },
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10, "lineWidth": 1, "showPoints": "never" } },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true, "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum(rate(obi_otel_metric_export_errors_total[5m]))",
+          "legendFormat": "metric export errors/s",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum(rate(obi_otel_trace_export_errors_total[5m]))",
+          "legendFormat": "trace export errors/s",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Trace exports (if enabled)",
+      "description": "Trace batches OBI exported through the pipeline. Currently no traces pipeline is configured in obi.yaml, so this panel will be empty until you add one.",
+      "id": 27,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 49 },
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10, "lineWidth": 1, "showPoints": "never" } },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true, "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum(rate(obi_otel_trace_exports_total[5m]))",
+          "legendFormat": "traces/s",
+          "range": true
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Pipeline throughput: OBI → collector → Prometheus",
+      "description": "Combined view: batches into the pipeline vs. points out of the exporter. A growing gap means points queue or drop inside the collector.",
+      "id": 28,
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 57 },
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10, "lineWidth": 1, "showPoints": "never" } },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true, "calcs": ["mean", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum(rate(obi_otel_metric_exports_total[5m]))",
+          "legendFormat": "into pipeline",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum by (exporter) (rate(otelcol_exporter_sent_metric_points_total{job=~\"otelcol-self|otelcol.*\"}[5m]))",
+          "legendFormat": "exported via {{exporter}}",
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "otelcol_exporter_in_flight_requests{job=~\"otelcol-self|otelcol.*\", exporter=\"prometheus\", data_type=\"metrics\"}",
+          "legendFormat": "in-flight (prometheus)",
+          "range": true
+        }
+      ]
+    }
+  ]
+}

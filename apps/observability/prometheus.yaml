@@ -1,3 +1,31 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: observability
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus-pods
+rules:
+  - apiGroups: ['']
+    resources: ['pods']
+    verbs: ['get', 'list', 'watch']
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus-pods
+subjects:
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: observability
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus-pods
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -13,7 +41,8 @@ spec:
       labels:
         app: prometheus
     spec:
-        containers:
+      serviceAccountName: prometheus
+      containers:
           - name: prometheus
             image: quay.io/prometheus/prometheus:v3.15.1@sha256:fa3302279710be2f21a8301ec17a8b4f2301fd829bd113839b3b6b02b6f191a2
             volumeMounts:
@@ -21,7 +50,7 @@ spec:
                 mountPath: /etc/prometheus
               - name: data-volume
                 mountPath: /prometheus
-        volumes:
+      volumes:
           - name: config-volume
             configMap:
               name: prometheus-config
@@ -110,6 +139,31 @@ data:
       static_configs:
       - targets:
         - obi-collector-collector.obi-system.svc.cluster.local:8889
+    - job_name: otelcol-self
+      kubernetes_sd_configs:
+        - role: pod
+          namespaces:
+            names:
+              - obi-system
+      relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          action: keep
+          regex: "true"
+        - source_labels: [__meta_kubernetes_pod_name]
+          action: replace
+          target_label: pod
+        - source_labels: [__meta_kubernetes_namespace]
+          action: replace
+          target_label: namespace
+        - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+          action: replace
+          regex: ([^:]+)(?::\d+)?;(\d+)
+          replacement: $1:$2
+          target_label: __address__
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+          action: replace
+          regex: (.+)
+          target_label: __metrics_path__
 
 
   alert_rules.yml: |
