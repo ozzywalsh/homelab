@@ -54,6 +54,7 @@ spec:
         - CHECKPOINT_RESTORE
         - DAC_READ_SEARCH
         - PERFMON
+        - SYS_ADMIN
       drop:
         - ALL
   tolerations:
@@ -67,11 +68,21 @@ spec:
     - name: cgroup
       hostPath:
         path: /sys/fs/cgroup
+    - name: bpffs
+      hostPath:
+        path: /sys/fs/bpf
+    - name: tracefs
+      hostPath:
+        path: /sys/kernel/tracing
   volumeMounts:
     - name: var-run-obi
       mountPath: /var/run/obi
     - name: cgroup
       mountPath: /sys/fs/cgroup
+    - name: bpffs
+      mountPath: /sys/fs/bpf
+    - name: tracefs
+      mountPath: /sys/kernel/tracing
   config:
     receivers:
       obi:
@@ -85,15 +96,13 @@ spec:
         internal_metrics:
           exporter: otel
     exporters:
-      debug:
-        verbosity: detailed
       prometheus:
         endpoint: "0.0.0.0:8889"
     service:
       pipelines:
         metrics:
           receivers: [obi]
-          exporters: [debug, prometheus]
+          exporters: [prometheus]
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
