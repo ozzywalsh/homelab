@@ -89,7 +89,7 @@ spec:
         discovery:
           instrument:
             - k8s_namespace: qbitorrent
-            - k8s_namespace: obi-demo
+            - k8s_namespace: obi-store-demo
         attributes:
           kubernetes:
             enable: "true"
