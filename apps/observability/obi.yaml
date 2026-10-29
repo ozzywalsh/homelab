@@ -119,6 +119,13 @@ spec:
         #   attributes.kubernetes.enable -> default autodetect (no v2 equivalent)
         #   internal_metrics.exporter -> daemon section not allowed in receiver
         version: '2.0'
+        capture:
+          runtimes:
+            java:
+              # The JVM handshake (load /tmp/obi-java-agent.jar) can exceed the
+              # 10s default on a cold JVM; the JNI lib lands but the attach
+              # dialog is cut off mid-load ("java attach timed out").
+              attach_timeout: 60s
         policy:
           default_action: exclude
         rules:
