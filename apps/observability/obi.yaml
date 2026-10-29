@@ -43,12 +43,24 @@ spec:
   observability:
     metrics:
       enableMetrics: true
+  env:
+    - name: OTEL_EBPF_KUBE_CLUSTER_NAME
+      # k8s.cluster.name on captured spans/metrics; env is the v2-receiver
+      # equivalent (enrich config section is not allowed in receiver mode).
+      value: homelab
   securityContext:
     runAsUser: 0
     readOnlyRootFilesystem: true
     capabilities:
       add:
         - BPF
+        # CAP_KILL: the Java/Node injectors verify their target with
+        # pidfd_send_signal(fd, 0); targets run as non-root (uid 1000 in the
+        # store demo) so without KILL the signal-permission check returns
+        # EPERM and Node.js/Java instrumentation is skipped with
+        # "unable to capture stable ... injection target ... operation not
+        # permitted" (procs/process_handle_linux.go Alive()).
+        - KILL
         - SYS_PTRACE
         - NET_RAW
         - CHECKPOINT_RESTORE
@@ -133,11 +145,12 @@ spec:
               kubernetes:
                 namespace_glob: [obi-store-demo]
     exporters:
-      otlphttp/prometheus:
+      otlp_http/prometheus:
         # Prometheus native OTLP receiver; exporter appends /v1/metrics.
+        # (otlphttp was the deprecated alias of otlp_http — collector 0.164 warns.)
         endpoint: http://prometheus.observability.svc.cluster.local:9090/api/v1/otlp
     service:
       pipelines:
         metrics:
           receivers: [obi]
-          exporters: [otlphttp/prometheus]
+          exporters: [otlp_http/prometheus]
