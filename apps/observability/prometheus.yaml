@@ -45,6 +45,10 @@ spec:
       containers:
           - name: prometheus
             image: quay.io/prometheus/prometheus:v3.15.1@sha256:fa3302279710be2f21a8301ec17a8b4f2301fd829bd113839b3b6b02b6f191a2
+            args:
+              - --config.file=/etc/prometheus/prometheus.yml
+              - --web.enable-otlp-receiver
+              - --storage.tsdb.out-of-order-time-window=30m
             volumeMounts:
               - name: config-volume
                 mountPath: /etc/prometheus
@@ -111,6 +115,8 @@ data:
       scrape_interval: 15s
       scrape_timeout: 10s
       evaluation_interval: 15s
+    otlp:
+      keep_identifying_resource_attributes: true
     alerting:
       alertmanagers:
         - static_configs:
@@ -135,10 +141,6 @@ data:
       static_configs:
       - targets:
         - 192.168.1.62:9100
-    - job_name: otelcol
-      static_configs:
-      - targets:
-        - obi-collector-collector.obi-system.svc.cluster.local:8889
     - job_name: otelcol-self
       kubernetes_sd_configs:
         - role: pod
@@ -178,3 +180,13 @@ data:
             annotations:
               summary: "Target is down"
               description: "{{ $labels.job }} target {{ $labels.instance }} has been down for more than 5 minutes."
+      - name: otel-push
+        rules:
+          - alert: OtelIngestionStalled
+            # Pushed data has no `up`; detect pipeline silence instead.
+            expr: absent_over_time({__name__=~"http_server_request_duration_seconds_count|http_client_request_duration_seconds_count|rpc_server_call_duration_seconds_count|obi_instrumented_processes"}[15m])
+            labels:
+              severity: warning
+            annotations:
+              summary: "OTLP-pushed OBI metrics absent for 15m"
+              description: "No OBI series received via native OTLP ingestion in 15m. Check obi-collector exporter errors (otelcol_exporter_send_failed_*) and that Prometheus runs with --web.enable-otlp-receiver."

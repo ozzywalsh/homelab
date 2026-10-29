@@ -96,25 +96,11 @@ spec:
         internal_metrics:
           exporter: otel
     exporters:
-      prometheus:
-        endpoint: "0.0.0.0:8889"
+      otlphttp/prometheus:
+        # Prometheus native OTLP receiver; exporter appends /v1/metrics.
+        endpoint: http://prometheus.observability.svc.cluster.local:9090/api/v1/otlp
     service:
       pipelines:
         metrics:
           receivers: [obi]
-          exporters: [prometheus]
----
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: obi-collector-monitor
-  namespace: obi-system
-spec:
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: obi-collector-collector
-      app.kubernetes.io/component: opentelemetry-collector
-  endpoints:
-    - port: prometheus
-      interval: 15s
-      path: /metrics
+          exporters: [otlphttp/prometheus]
