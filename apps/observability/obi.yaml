@@ -67,6 +67,14 @@ spec:
         # injector fails with "failed to enter target mnt namespace" ->
         # "unsupported Java version".
         - SYS_CHROOT
+        # CAP_SETUID/CAP_SETGID: the injector switches the attach thread's
+        # effective uid/gid to the JVM's (jvmtools setThreadEUID: HotSpot
+        # dynamic attach only accepts same-euid clients). Setting euid to a
+        # value that is neither ruid, euid nor suid requires CAP_SETUID even
+        # when the direction is a drop; switching back afterwards requires it
+        # as well.
+        - SETUID
+        - SETGID
         - SYS_PTRACE
         - NET_RAW
         - CHECKPOINT_RESTORE
