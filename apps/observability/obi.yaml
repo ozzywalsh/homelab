@@ -61,6 +61,12 @@ spec:
         # "unable to capture stable ... injection target ... operation not
         # permitted" (procs/process_handle_linux.go Alive()).
         - KILL
+        # CAP_SYS_CHROOT: setns(CLONE_NEWNS) into a target's mount namespace
+        # (Java agent attach) requires ns_capable(own_user_ns, SYS_CHROOT) on
+        # kernel 6.18 (fs/namespace.c mntns_install). Without it the java
+        # injector fails with "failed to enter target mnt namespace" ->
+        # "unsupported Java version".
+        - SYS_CHROOT
         - SYS_PTRACE
         - NET_RAW
         - CHECKPOINT_RESTORE
