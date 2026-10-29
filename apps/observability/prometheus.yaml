@@ -48,7 +48,6 @@ spec:
             args:
               - --config.file=/etc/prometheus/prometheus.yml
               - --web.enable-otlp-receiver
-              - --storage.tsdb.out-of-order-time-window=30m
             volumeMounts:
               - name: config-volume
                 mountPath: /etc/prometheus
@@ -115,6 +114,11 @@ data:
       scrape_interval: 15s
       scrape_timeout: 10s
       evaluation_interval: 15s
+    # TSDB storage flags moved into the config file in Prometheus 3.x.
+    # Pushed OTLP samples need an out-of-order window (docs recommend ~30m).
+    storage:
+      tsdb:
+        out_of_order_time_window: 30m
     otlp:
       keep_identifying_resource_attributes: true
     alerting:
