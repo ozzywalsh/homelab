@@ -86,15 +86,52 @@ spec:
   config:
     receivers:
       obi:
-        discovery:
-          instrument:
-            - k8s_namespace: qbitorrent
-            - k8s_namespace: obi-store-demo
-        attributes:
-          kubernetes:
-            enable: "true"
-        internal_metrics:
-          exporter: otel
+        # OBI config v2 (receiver mode): capture sections sit beside `version`,
+        # no enrich/correlation/daemon sections allowed. Migrated with
+        # `obi config migrate --mode=receiver` (OBI v0.15.2) rules:
+        #   discovery.instrument k8s_namespace -> policy/rules match.kubernetes
+        #   attributes.kubernetes.enable -> default autodetect (no v2 equivalent)
+        #   internal_metrics.exporter -> daemon section not allowed in receiver
+        version: '2.0'
+        policy:
+          default_action: exclude
+        rules:
+          - action: exclude
+            name: exclude-obi-and-collectors
+            description: Exclude OBI and collector binaries to avoid self-instrumentation and collector recursion.
+            match:
+              process:
+                exe_path_glob:
+                  - '{*/obi,obi,*otelcol,*otelcol-contrib,*otelcol-contrib[!/]*}'
+          - action: exclude
+            name: exclude-system-namespaces
+            description: Exclude platform/system namespaces from instrumentation.
+            match:
+              kubernetes:
+                namespace_glob:
+                  - kube-system
+                  - kube-node-lease
+                  - cert-manager
+                  - gatekeeper-system
+                  - observability
+          - action: exclude
+            name: exclude-otlp-exporters
+            description: Exclude services that export OTLP themselves to avoid duplicate pipelines.
+            match:
+              process:
+                exports_otlp:
+                  port: 4317
+                  protocol: protobuf
+          - action: include
+            name: qbitorrent
+            match:
+              kubernetes:
+                namespace_glob: [qbitorrent]
+          - action: include
+            name: obi-store-demo
+            match:
+              kubernetes:
+                namespace_glob: [obi-store-demo]
     exporters:
       otlphttp/prometheus:
         # Prometheus native OTLP receiver; exporter appends /v1/metrics.
