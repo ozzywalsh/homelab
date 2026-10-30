@@ -37,7 +37,12 @@ metadata:
   namespace: obi-system
 spec:
   mode: daemonset
-  image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.164.0@sha256:340c9ca6a36617084c6661bdc4f0fe92b7cda5a805d61673ec8db375fddc522b
+  # Custom otelcol-obi build with the OBI receiver patch for #3701: probe both
+  # tcp_sendmsg and tcp_sendmsg_locked with in-flight dedup. On ThinLTO/clang
+  # kernels (Talos 6.18) the tcp_sendmsg kprobe attaches but never fires, so
+  # non-Go services lose all gRPC server RED metrics. See
+  # obi-3701-tcp-sendmsg-locked-pr-spec.md.
+  image: ghcr.io/ozzywalsh/opentelemetry-collector:sendmsg-3701@sha256:1623e2b6ef5a013e0d9a3790a13154ce7454c402ed22e5770b404878fd086ed7
   serviceAccount: obi-collector
   hostPID: true
   observability:
