@@ -53,7 +53,7 @@ spec:
       containers:
         - name: llama
 
-          image: ghcr.io/ggml-org/llama.cpp:server@sha256:8c74db29f1a2bef3f0a331b52c4d6214601dfceed4bee0b94cc48b3b23ff257d
+          image: ghcr.io/ggml-org/llama.cpp:server@sha256:ae28f5c2046de51dfd00c9116a36fe44b5e8703ef730d0aea69082781eecb1f7
 
           imagePullPolicy: IfNotPresent
 
